@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import octorest
+import time
+import json
+import sys
+
+
+def capture_events(file_name, url):
+  gen = octorest.XHRStreamingGenerator(url)
+  read_loop = gen.read_loop()
+  start = time.time()
+  total_bytes = 0
+  with open(file_name, "w") as fh:
+    num = 1
+    try:
+      while True:
+        msg = next(read_loop)
+        msg_str = json.dumps(msg, separators=(',', ':'))
+        ts = time.time()
+        fh.write("{} {}\n".format(ts, msg_str))
+
+        delta = int(ts - start)
+        total_bytes += len(msg_str)
+        print("{}: {}, {}\r".format(delta, num, total_bytes),
+              flush=True, end='')
+        num += 1
+    except KeyboardInterrupt:
+      print("\ndone...")
+
+
+def run():
+  if len(sys.argv) != 3:
+    print("usage: {} <file> <octoprint_url>".format(sys.argv[0]))
+    sys.exit(1)
+  file = sys.argv[1]
+  url = sys.argv[2]
+  sys.exit(capture_events(file, url))
+
+
+run()
