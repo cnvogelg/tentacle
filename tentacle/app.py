@@ -45,21 +45,29 @@ class App(QMainWindow):
   def _setup_client(self, octo_client):
     self._octo_client = octo_client
     self._octo_client.connected.connect(self._on_octo_connected)
+    self._octo_client.error.connect(self._on_octo_error)
     self._octo_client.current.connect(self._on_octo_current)
     self._octo_client.start()
 
   def _setup_tabs(self):
+    self._tab_widgets = {}
     for name, cls in self.tabs:
-      self.table_widget.addTab(cls(), name)
+      w = cls()
+      self._tab_widgets[name] = w
+      self.table_widget.addTab(w, name)
+    self.table_widget.setCurrentWidget(self._tab_widgets['Job'])
 
   def _welcome(self):
-    v = self._octo_client.get_version()
-    msg = "api=%s, server=%s" % (v['api'], v['server'])
-    self.statusBar().showMessage(msg)
+    self.statusBar().showMessage("Welcome to tentacle!")
 
   @pyqtSlot(dict)
   def _on_octo_connected(self, event):
-    pprint.pprint(event)
+    version = event['version']
+    self.statusBar().showMessage("Connected: %s" % version)
+
+  @pyqtSlot(str)
+  def _on_octo_error(self, error):
+    self.statusBar().showMessage("Error: %s" % error)
 
   @pyqtSlot(dict)
   def _on_octo_current(self, event):

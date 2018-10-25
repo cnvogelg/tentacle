@@ -1,7 +1,39 @@
 import logging
 import octorest
 import pprint
+import time
+import json
+import gzip
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
+
+
+class OctoSimGenerator:
+  def __init__(self, file_name, scale=1.0):
+    self.file_name = file_name
+    self.scale = scale
+
+  def read_loop(self):
+    """a generator yieling the messages recorded in a file"""
+    last_time = None
+    if self.file_name.endswith("gz"):
+      op = gzip.open
+    else:
+      op = open
+    with op(self.file_name, mode="rt", encoding="utf8") as fh:
+      for line in fh:
+        pos = line.find(' ')
+        ts_str = line[:pos]
+        obj_str = line[pos+1:]
+        ts = float(ts_str)
+        obj = json.loads(obj_str)
+        # time handling
+        if last_time:
+          delta = (ts - last_time) * self.scale
+          if delta > 0:
+            time.sleep(delta)
+        last_time = ts
+        # yield data
+        yield obj
 
 
 class OctoEventEmitter(QThread):
@@ -9,12 +41,12 @@ class OctoEventEmitter(QThread):
   msg_types = ('connected', 'current', 'history', 'event',
                'slicingProgress', 'plugin')
 
-  def __init__(self, url, client):
+  def __init__(self, client, gen, retry_delay=5):
     super(QThread, self).__init__()
-    self.url = url
     self.client = client
+    self.gen = gen
+    self.retry_delay = retry_delay
     self.stay = True
-    self.gen = None
 
   @pyqtSlot()
   def stop(self):
@@ -22,22 +54,30 @@ class OctoEventEmitter(QThread):
 
   def run(self):
     logging.debug("start event emitter")
-    self.gen = octorest.XHRStreamingGenerator(self.url)
-    read_loop = self.gen.read_loop()
     while self.stay:
-      msg = next(read_loop)
-      if not self.stay:
-        break
-      for t in self.msg_types:
-        if t in msg:
-          signal = getattr(self.client, t)
-          signal.emit(msg[t])
+      try:
+        read_loop = self.gen.read_loop()
+        for msg in read_loop:
+          if not self.stay:
+            break
+          for t in self.msg_types:
+            if t in msg:
+              signal = getattr(self.client, t)
+              signal.emit(msg[t])
+      except IOError as e:
+        logging.error("emitter exeception: %s", e)
+        self.client.error.emit(str(e))
+        # retry
+        time.sleep(self.retry_delay)
+        logging.info("retry event emitter")
     logging.debug("stop event emitter")
 
 
 class OctoClient(QObject):
 
   stopEmitter = pyqtSignal()
+  error = pyqtSignal(str)
+  # octo events
   connected = pyqtSignal(dict)
   current = pyqtSignal(dict)
   history = pyqtSignal(dict)
@@ -45,15 +85,21 @@ class OctoClient(QObject):
   slicingProgress = pyqtSignal(dict)
   plugin = pyqtSignal(dict)
 
-  def __init__(self, url, api_key):
+  def __init__(self, url=None, api_key=None, sim_file=None, sim_scale=1.0):
     super(QObject, self).__init__()
-    self.url = url
-    self.client = octorest.OctoRest(url=url, apikey=api_key)
-    self.version = self.client.version
+    if sim_file:
+      self.gen = OctoSimGenerator(sim_file, sim_scale)
+      self.client = None
+    else:
+      self.gen = octorest.XHRStreamingGenerator(url)
+      if api_key:
+        self.client = octorest.OctoRest(url=url, apikey=api_key)
+      else:
+        self.client = None
     self._thread = None
 
   def start(self):
-    self._thread = OctoEventEmitter(self.url, self)
+    self._thread = OctoEventEmitter(self, self.gen)
     self.stopEmitter.connect(self._thread.stop)
     self._thread.start()
 
@@ -62,36 +108,34 @@ class OctoClient(QObject):
     self._thread.wait()
     self._thread = None
 
-  def fetch_connection(self):
-    return self.client.connection_info()
-
-  def fetch_printer(self):
-    return self.client.printer()
-
-  def fetch_files(self):
-    return self.client.files()
-
-  def fetch_job(self):
-    return self.client.job_info()
-
-  def get_version(self):
-    return self.version
-
-  def dump(self):
-    p = pprint.pprint
-    print("version", self.get_version())
-    print("--- connection ---")
-    p(self.fetch_connection())
-    print("--- printer ---")
-    p(self.fetch_printer())
-    print("--- files ---")
-    p(self.fetch_files())
-    print("--- job ---")
-    p(self.fetch_job())
-
 
 if __name__ == '__main__':
-  api_key = "10173304C8594E55AF944BEBBE67AB3D"
-  url = "http://octopi.local"
-  c = OctoClient(url, api_key)
-  c.dump()
+  from PyQt5.QtCore import QCoreApplication
+  import sys
+  import pprint
+
+  app = QCoreApplication(sys.argv)
+  if len(sys.argv) > 1:
+    sim_file = sys.argv[1]
+    print("sim_file", sim_file)
+    if len(sys.argv) > 2:
+      sim_scale = float(sys.argv[2])
+      print("sim_scale", sim_scale)
+    else:
+      sim_scale = 1.0
+    oc = OctoClient(sim_file=sim_file, sim_scale=sim_scale)
+  else:
+    oc = OctoClient(url="http://octopi.local")
+
+  num = 0
+  @pyqtSlot(dict)
+  def current(d):
+    global num
+    pprint.pprint(d)
+    num += 1
+    if num == 5:
+      app.quit()
+
+  oc.current.connect(current)
+  oc.start()
+  sys.exit(app.exec_())
