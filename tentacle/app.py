@@ -1,9 +1,10 @@
 import sys
 import pprint
 import logging
-from PyQt5.QtWidgets import QMainWindow, QTabWidget
+from PyQt5.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QLabel
 from PyQt5.QtCore import Qt, pyqtSlot
 
+from .model import DataModel
 from .control import ControlWidget
 from .files import FilesWidget
 from .job import JobWidget
@@ -24,16 +25,16 @@ class App(QMainWindow):
     self.setWindowTitle("tentacle")
     self.setGeometry(0, 0, 320, 240)
 
+    self._setup_status()
+    self._setup_client(octo_client)
+
     self.table_widget = QTabWidget(self)
     self._setup_tabs()
     self.setCentralWidget(self.table_widget)
 
-    self._setup_client(octo_client)
-    self._welcome()
-
   def keyPressEvent(self, event):
     if event.key() == Qt.Key_Escape:
-      logging.info("<Esc> pressed... quitting")
+      logging.error("<Esc> pressed... quitting")
       self.close()
 
   def closeEvent(self, event):
@@ -44,31 +45,24 @@ class App(QMainWindow):
 
   def _setup_client(self, octo_client):
     self._octo_client = octo_client
-    self._octo_client.connected.connect(self._on_octo_connected)
-    self._octo_client.error.connect(self._on_octo_error)
-    self._octo_client.current.connect(self._on_octo_current)
+    self._data_model = DataModel()
+    self._data_model.attach(octo_client)
+    self._data_model.connected.connect(self._status_bar.showMessage)
+    self._data_model.disconnected.connect(self._status_bar.showMessage)
+    self._data_model.updateStateText.connect(self._l_status.setText)
     self._octo_client.start()
 
   def _setup_tabs(self):
     self._tab_widgets = {}
     for name, cls in self.tabs:
-      w = cls()
+      w = cls(self._data_model)
       self._tab_widgets[name] = w
       self.table_widget.addTab(w, name)
     self.table_widget.setCurrentWidget(self._tab_widgets['Job'])
 
-  def _welcome(self):
-    self.statusBar().showMessage("Welcome to tentacle!")
-
-  @pyqtSlot(dict)
-  def _on_octo_connected(self, event):
-    version = event['version']
-    self.statusBar().showMessage("Connected: %s" % version)
-
-  @pyqtSlot(str)
-  def _on_octo_error(self, error):
-    self.statusBar().showMessage("Error: %s" % error)
-
-  @pyqtSlot(dict)
-  def _on_octo_current(self, event):
-    pprint.pprint(event)
+  def _setup_status(self):
+    self._status_bar = QStatusBar()
+    self._l_status = QLabel("Mode")
+    self._status_bar.addPermanentWidget(self._l_status)
+    self.setStatusBar(self._status_bar)
+    self._status_bar.showMessage("Welcome to tentacle!", 2000)

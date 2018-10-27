@@ -64,6 +64,8 @@ class OctoEventEmitter(QThread):
             if t in msg:
               signal = getattr(self.client, t)
               signal.emit(msg[t])
+        self.client.error.emit("EOF reached")
+        break
       except IOError as e:
         logging.error("emitter exeception: %s", e)
         self.client.error.emit(str(e))
