@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QProgressBar
 from PyQt5.QtCore import pyqtSlot
 from .util import ts_to_hms
+from .model import JobData, ProgressData
 
 
 class JobWidget(QWidget):
@@ -45,24 +46,22 @@ class JobWidget(QWidget):
     self._layout.addWidget(self._l_file_size, 4, 2)
     self._layout.addWidget(self._p_completion, 5, 0, 1, 3)
 
-  @pyqtSlot(str, str, int, float, float, float)
-  def on_updatedJob(self, user, file_name, file_size, est_print_time,
-                    t0_fila, t1_fila):
-    self._l_user.setText("@" + user)
-    self._l_file_name.setText(file_name)
-    self._l_file_size.setText(str(file_size))
-    hms = ts_to_hms(est_print_time)
+  @pyqtSlot(JobData)
+  def on_updatedJob(self, data):
+    self._l_user.setText("@" + data.user)
+    self._l_file_name.setText(data.file)
+    self._l_file_size.setText(str(data.size))
+    hms = ts_to_hms(data.est_time)
     self._l_time_est.setText("%02d:%02d:%02d" % hms)
-    self._l_f0.setText("%3.2f" % t0_fila)
-    self._l_f1.setText("%3.2f" % t1_fila)
+    self._l_f0.setText("%3.2f" % data.fl0)
+    self._l_f1.setText("%3.2f" % data.fl1)
 
-  @pyqtSlot(float, int, float, float, str)
-  def on_updateProgress(self, completion, file_pos, time, time_left,
-                        left_origin):
-    self._p_completion.setValue(int(completion))
-    hms = ts_to_hms(time)
+  @pyqtSlot(ProgressData)
+  def on_updateProgress(self, data):
+    self._p_completion.setValue(int(data.completion))
+    hms = ts_to_hms(data.time)
     self._l_time.setText("%02d:%02d:%02d" % hms)
-    hms = ts_to_hms(time_left)
+    hms = ts_to_hms(data.time_left)
     self._l_time_left.setText("%02d:%02d:%02d" % hms)
-    self._l_left_origin.setText(left_origin)
-    self._l_file_pos.setText(str(file_pos))
+    self._l_left_origin.setText(data.left_origin)
+    self._l_file_pos.setText(str(data.file_pos))
