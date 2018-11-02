@@ -46,7 +46,7 @@ def setup_logging(args):
   logging.info("Welcome to tentacle!")
 
 
-def run():
+def main():
   args = parse_args()
   # setup logging
   setup_logging(args)
@@ -69,4 +69,5 @@ def run():
   sys.exit(ret)
 
 
-run()
+if __name__ == '__main__':
+  main()

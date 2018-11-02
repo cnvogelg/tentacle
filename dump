@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+import sys
+import pprint
+import json
+import gzip
+import time
+
+
+def dump_file(file_name):
+    if file_name.endswith("gz"):
+      op = gzip.open
+    else:
+      op = open
+    with op(file_name, mode="rt", encoding="utf8") as fh:
+      for line in fh:
+        pos = line.find(' ')
+        ts_str = line[:pos]
+        obj_str = line[pos+1:]
+        ts = float(ts_str)
+        obj = json.loads(obj_str)
+        # print
+        ms = (ts * 1000) % 1000
+        print(time.strftime("%d.%m.%Y %H:%M:%S", time.localtime(ts)) + ".%03d" % ms)
+        pprint.pprint(obj)
+
+
+def run(argv):
+  if len(argv) != 2:
+    print("Usage: %{} <file.cap>".format(argv[0]))
+    return 1
+  dump_file(argv[1])
+  return 0
+
+
+if __name__ == '__main__':
+  sys.exit(run(sys.argv))
