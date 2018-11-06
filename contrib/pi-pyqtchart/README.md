@@ -34,7 +34,7 @@ Build and install the PyQtCharts module
 $ wget https://datapacket.dl.sourceforge.net/project/pyqt/PyQtChart/PyQtChart-5.7/PyQtChart_gpl-5.7.tar.gz
 $ tar zxvf PyQtChart_gpl-5.7.tar.gz
 $ cd PyQtChart_gpl-5.7
-$ python3 configure.py --qtchart-version=2.0.1 --verbose
+$ python3 configure.py --qtchart-version=2.1.2 --verbose
 $ make
 $ sudo make install
 ```
