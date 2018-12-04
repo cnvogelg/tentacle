@@ -23,7 +23,6 @@ class App(QMainWindow):
   def __init__(self, octo_client):
     super().__init__()
     self.setWindowTitle("tentacle")
-    self.setGeometry(0, 0, 320, 240)
 
     self._setup_status()
     self._setup_client(octo_client)

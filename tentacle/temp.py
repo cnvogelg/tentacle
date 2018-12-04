@@ -71,8 +71,8 @@ class TempWidget(QWidget):
     begin = time - self._x_range
     if begin > self._x_begin:
       self._x_begin = begin
-      self._axis_x.setMin(QDateTime.fromSecsSinceEpoch(begin))
-      self._axis_x.setMax(QDateTime.fromSecsSinceEpoch(time))
+      self._axis_x.setMin(QDateTime.fromMSecsSinceEpoch(begin * 1000))
+      self._axis_x.setMax(QDateTime.fromMSecsSinceEpoch(time * 1000))
     # add new points (in ms resolution)
     time *= 1000
     d = self._datas
