@@ -11,8 +11,8 @@ setup(name='tentacle',
       zip_safe=True,
       install_requires=[
           'PyQt5',
-          'PyQtChart',
-          'qdarkstyle'
+          'qdarkstyle',
+          'octorest'
       ],
       entry_points={
           'console_scripts': [

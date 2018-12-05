@@ -1,93 +1,194 @@
-from PyQt5.QtCore import pyqtSlot, QMargins, QDateTime
+import logging
+import time
+
+from PyQt5.QtCore import pyqtSlot, QMargins, QDateTime, QPoint
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
-from PyQt5.QtGui import QPainter
-from PyQt5.QtChart import QLineSeries, QChartView, QValueAxis, QDateTimeAxis
+from PyQt5.QtGui import QPainter, QColor, QFontMetrics
+
 from .model import TempData
+from .util import ts_to_hms
 
 
 class TempWidget(QWidget):
-  def __init__(self, model, x_range=10):
+  def __init__(self, model):
     super(QWidget, self).__init__()
-    self._x_range = x_range * 60 # in seconds
-    self._x_begin = 0
-    # ui
-    self._layout = QVBoxLayout()
-    self._layout.setContentsMargins(0, 0, 0, 0)
-    self.setLayout(self._layout)
-    self._chart_view = QChartView()
-    self._chart_view.setRenderHint(QPainter.Antialiasing)
-    self._layout.addWidget(self._chart_view)
-    # chart
-    chart = self._chart_view.chart()
-    self._setup_chart(chart)
-    # model connections
+    # receive temps
     self._model = model
     self._model.updateTemps.connect(self.on_updateTemps)
+    self.min_y = 0
+    self.max_y = 100
+    self.step_y = 10
+    self.font_size = 8
+    # data buf
+    self.data_len = 320
+    self.data_buf = [None] * self.data_len
+    self.data_pos = 0
+    # colors
+    self.col_bg = QColor(0, 0, 0)
+    self.col_grid = QColor(64, 64, 64)
+    self.col_txt = QColor(255, 255, 255)
+    self.col_temps = (
+        QColor(128, 100, 100), QColor(255, 200, 200),
+        QColor(100, 128, 100), QColor(200, 255, 200),
+        QColor(100, 100, 128), QColor(200, 200, 255))
 
-  def _setup_chart(self, chart):
-    self._ref_time = None
-    self._datas = []
-    chart.setBackgroundRoundness(0)
-    chart.setMargins(QMargins(0, 0, 0, 0))
-    chart.legend().setVisible(False)
-    self._axis_x = self._setup_axis_x()
-    self._axis_y = self._setup_axis_y()
-    for i in range(6):
-      d = QLineSeries()
-      if i < 3:
-        p = d.pen()
-        p.setWidth(1)
-        d.setPen(p)
-      self._datas.append(d)
-      chart.addSeries(d)
-      chart.setAxisX(self._axis_x, d)
-      chart.setAxisY(self._axis_y, d)
-
-  def _setup_axis_y(self):
-    a = QValueAxis()
-    a.setRange(0, 250)
-    a.setTickCount(6)
-    a.setMinorTickCount(4)
-    a.setLabelFormat("%.0f")
-    f = self.font()
-    f.setPixelSize(8)
-    a.setLabelsFont(f)
-    a.setTitleVisible(False)
-    return a
-
-  def _setup_axis_x(self):
-    a = QDateTimeAxis()
-    a.setFormat("hh:mm:ss")
-    f = self.font()
-    f.setPixelSize(8)
-    a.setLabelsFont(f)
-    return a
+  def configure(self, cfg):
+    if 'min' in cfg:
+      self.min_y = int(cfg['min'])
+    if 'max' in cfg:
+      self.max_y = int(cfg['max'])
+    if 'step' in cfg:
+      self.step_y = int(cfg['step'])
+    if 'font_size' in cfg:
+      self.font_size = int(cfg['font_size'])
 
   @pyqtSlot(TempData)
   def on_updateTemps(self, data):
-    # time since epoch in seconds
-    time = data.time
-    # move range if necessary
-    begin = time - self._x_range
-    if begin > self._x_begin:
-      self._x_begin = begin
-      self._axis_x.setMin(QDateTime.fromMSecsSinceEpoch(begin * 1000))
-      self._axis_x.setMax(QDateTime.fromMSecsSinceEpoch(time * 1000))
-    # add new points (in ms resolution)
-    time *= 1000
-    d = self._datas
-    d[0].append(time, data.bed[1])
-    d[1].append(time, data.tool0[1])
-    d[2].append(time, data.tool1[1])
-    d[3].append(time, data.bed[0])
-    d[4].append(time, data.tool0[0])
-    d[5].append(time, data.tool1[0])
-    # cleanup old points
-    begin *= 1000
-    for d in self._datas:
-      while True:
-        v = d.at(0)
-        if v.x() < begin:
-          d.remove(0)
-        else:
-          break
+    self.data_buf[self.data_pos] = data
+    self.data_pos += 1
+    # scroll buffer to left
+    if self.data_pos == self.data_len:
+      self.data_pos = self.data_len - 1
+      self.data_buf = self.data_buf[1:] + [None]
+    self.repaint()
+
+  def resizeEvent(self, e):
+    s = e.size()
+    width = s.width() - 2
+    height = s.height() - 2
+    logging.info("temp win size: %d x %d", width, height)
+    # derive font
+    self.f = self.font()
+    self.f.setPixelSize(self.font_size)
+    self.fm = QFontMetrics(self.f)
+    # font boxes
+    self.num_tr = self.fm.boundingRect("999")
+    self.num_tr.moveTop(2)
+    self.num_tr.moveLeft(2)
+    self.time_tr = self.fm.boundingRect("99:99:99")
+    # scaling
+    self.t_start = height + 1
+    self.t_h = self.max_y - self.min_y
+    self.t_scl = height / self.t_h
+    # map func
+    self.map_y = lambda x: int(self.t_start - x * self.t_scl)
+    # shrink buffer?
+    if self.data_len > width:
+      shrink = self.data_len - width
+      self.data_len = width
+      self.data_buf = self.data_buf[shrink:]
+      if self.data_pos > shrink:
+        self.data_pos -= shrink
+      else:
+        self.data_pos = 0
+
+  def paintEvent(self, e):
+    t = time.time()
+    qp = QPainter()
+    qp.begin(self)
+    size = self.size()
+    self._draw(qp, size.width(), size.height())
+    qp.end()
+    d = time.time() - t
+    logging.debug("temp paint: %6.3f ms", d * 1000.0)
+
+  def _draw(self, qp, w, h):
+    # blank
+    qp.setPen(self.col_bg)
+    qp.setBrush(QColor(32, 32, 32))
+    qp.drawRect(0, 0, w, h)
+    # grid
+    self._draw_grid(qp, w)
+    # plot graph
+    x = 1
+    last_data = None
+    for data in self.data_buf:
+      self._draw_data(qp, x, h, data, last_data)
+      last_data = data
+      x += 1
+    # texts
+    self._draw_grid_text(qp)
+    self._draw_time(qp, w, h)
+    self._draw_temps_text(qp, w, h)
+
+  def _draw_grid(self, qp, w):
+    qp.setPen(self.col_grid)
+    off = self.min_y
+    while off <= self.max_y:
+      y = self.map_y(off)
+      qp.drawLine(0, y, w, y)
+      off += self.step_y
+
+  def _draw_data(self, qp, x, h, data, last_data):
+    if not data or not last_data:
+      return
+    if data.bed and last_data.bed:
+      self._draw_temp(qp, x, h, data.bed, last_data.bed, 0)
+    if data.tool0 and last_data.tool0:
+      self._draw_temp(qp, x, h, data.tool0, last_data.tool0, 2)
+    if data.tool1 and last_data.tool1:
+      self._draw_temp(qp, x, h, data.tool1, last_data.tool1, 4)
+
+  def _draw_temp(self, qp, x, h, val_pair, last_val_pair, col_off):
+    # target temp
+    qp.setPen(self.col_temps[col_off])
+    yl = self.map_y(last_val_pair[1])
+    yn = self.map_y(val_pair[1])
+    qp.drawLine(x-1, yl, x, yn)
+    # current val
+    qp.setPen(self.col_temps[col_off + 1])
+    yl = self.map_y(last_val_pair[0])
+    yn = self.map_y(val_pair[0])
+    qp.drawLine(x-1, yl, x, yn)
+
+  def _draw_grid_text(self, qp):
+    qp.setPen(self.col_txt)
+    qp.setFont(self.f)
+    off = self.min_y
+    while off <= self.max_y:
+      tr = self.num_tr
+      y = self.map_y(off)
+      tr.moveTop(y)
+      qp.drawText(tr, 0, str(off))
+      off += self.step_y * 2
+
+  def _draw_time(self, qp, w, h):
+    if self.data_pos == 0:
+      return
+    last_data = self.data_buf[self.data_pos - 1]
+    if not last_data:
+      return
+    time = last_data.time
+    hms = ts_to_hms(time)
+    time_str = "%02d:%02d:%02d" % hms
+    tr = self.time_tr
+    tr.moveRight(w - 2)
+    tr.moveTop(0)
+    qp.drawText(tr, 0, time_str)
+
+  def _draw_temps_text(self, qp, w, h):
+    if self.data_pos == 0:
+      return
+    last_data = self.data_buf[self.data_pos - 1]
+    if not last_data:
+      return
+    if last_data.bed:
+      self._draw_temp_text(qp, w, h, last_data.bed, 0, "B")
+    if last_data.tool0:
+      self._draw_temp_text(qp, w, h, last_data.tool0, 1, "0")
+    if last_data.tool1:
+      self._draw_temp_text(qp, w, h, last_data.tool1, 2, "1")
+
+  def _draw_temp_text(self, qp, w, h, vals, off, txt):
+    txt = "%s: %7.2f/%4.0f" % (txt, vals[0], vals[1])
+    tr = self.fm.boundingRect(txt)
+    if off == 0:
+      tr.moveLeft(2)
+    elif off == 1:
+      tr.moveCenter(QPoint(w // 2, 0))
+    else:
+      tr.moveRight(w-2)
+    tr.moveBottom(h-2)
+    c = self.col_temps[off * 2 + 1]
+    qp.setPen(c)
+    qp.drawText(tr, 0, txt)

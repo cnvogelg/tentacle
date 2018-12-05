@@ -109,7 +109,7 @@ def main():
   fb_mode = setup_qt(args, cfg['qt'])
   # setup app
   app = QApplication(sys.argv)
-  ex = App(oc)
+  ex = App(oc, cfg)
   setup_app(app, ex, cfg['app'], fb_mode)
   ex.show()
   ret = app.exec_()

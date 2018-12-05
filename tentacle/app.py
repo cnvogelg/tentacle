@@ -20,8 +20,9 @@ class App(QMainWindow):
       ('Temp', TempWidget)
   )
 
-  def __init__(self, octo_client):
+  def __init__(self, octo_client, cfg):
     super().__init__()
+    self.cfg = cfg
     self.setWindowTitle("tentacle")
 
     self._setup_status()
@@ -55,6 +56,10 @@ class App(QMainWindow):
     self._tab_widgets = {}
     for name, cls in self.tabs:
       w = cls(self._data_model)
+      # do we have a config
+      cfg_name = name.lower()
+      if cfg_name in self.cfg and hasattr(w, 'configure'):
+        w.configure(self.cfg[cfg_name])
       self._tab_widgets[name] = w
       self.table_widget.addTab(w, name)
     self.table_widget.setCurrentWidget(self._tab_widgets['Job'])
