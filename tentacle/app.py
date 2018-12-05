@@ -1,8 +1,6 @@
-import sys
-import pprint
 import logging
 from PyQt5.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QLabel
-from PyQt5.QtCore import Qt, pyqtSlot
+from PyQt5.QtCore import Qt
 
 from .model import DataModel
 from .control import ControlWidget

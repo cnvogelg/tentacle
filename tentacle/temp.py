@@ -1,8 +1,8 @@
 import logging
 import time
 
-from PyQt5.QtCore import pyqtSlot, QMargins, QDateTime, QPoint
-from PyQt5.QtWidgets import QWidget, QVBoxLayout
+from PyQt5.QtCore import pyqtSlot, QPoint
+from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPainter, QColor, QFontMetrics
 
 from .model import TempData
@@ -11,7 +11,7 @@ from .util import ts_to_hms
 
 class TempWidget(QWidget):
   def __init__(self, model):
-    super(QWidget, self).__init__()
+    super().__init__()
     # receive temps
     self._model = model
     self._model.updateTemps.connect(self.on_updateTemps)
@@ -82,7 +82,7 @@ class TempWidget(QWidget):
       else:
         self.data_pos = 0
 
-  def paintEvent(self, e):
+  def paintEvent(self, _):
     t = time.time()
     qp = QPainter()
     qp.begin(self)
@@ -103,12 +103,12 @@ class TempWidget(QWidget):
     x = 1
     last_data = None
     for data in self.data_buf:
-      self._draw_data(qp, x, h, data, last_data)
+      self._draw_data(qp, x, data, last_data)
       last_data = data
       x += 1
     # texts
     self._draw_grid_text(qp)
-    self._draw_time(qp, w, h)
+    self._draw_time(qp, w)
     self._draw_temps_text(qp, w, h)
 
   def _draw_grid(self, qp, w):
@@ -119,17 +119,17 @@ class TempWidget(QWidget):
       qp.drawLine(0, y, w, y)
       off += self.step_y
 
-  def _draw_data(self, qp, x, h, data, last_data):
+  def _draw_data(self, qp, x, data, last_data):
     if not data or not last_data:
       return
     if data.bed and last_data.bed:
-      self._draw_temp(qp, x, h, data.bed, last_data.bed, 0)
+      self._draw_temp(qp, x, data.bed, last_data.bed, 0)
     if data.tool0 and last_data.tool0:
-      self._draw_temp(qp, x, h, data.tool0, last_data.tool0, 2)
+      self._draw_temp(qp, x, data.tool0, last_data.tool0, 2)
     if data.tool1 and last_data.tool1:
-      self._draw_temp(qp, x, h, data.tool1, last_data.tool1, 4)
+      self._draw_temp(qp, x, data.tool1, last_data.tool1, 4)
 
-  def _draw_temp(self, qp, x, h, val_pair, last_val_pair, col_off):
+  def _draw_temp(self, qp, x, val_pair, last_val_pair, col_off):
     # target temp
     qp.setPen(self.col_temps[col_off])
     yl = self.map_y(last_val_pair[1])
@@ -152,14 +152,14 @@ class TempWidget(QWidget):
       qp.drawText(tr, 0, str(off))
       off += self.step_y * 2
 
-  def _draw_time(self, qp, w, h):
+  def _draw_time(self, qp, w):
     if self.data_pos == 0:
       return
     last_data = self.data_buf[self.data_pos - 1]
     if not last_data:
       return
-    time = last_data.time
-    hms = ts_to_hms(time)
+    ts = last_data.time
+    hms = ts_to_hms(ts)
     time_str = "%02d:%02d:%02d" % hms
     tr = self.time_tr
     tr.moveRight(w - 2)
