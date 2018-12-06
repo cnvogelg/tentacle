@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QLabel
 from PyQt5.QtCore import Qt
 
 from .model import DataModel
-from .control import ControlWidget
+from .move import MoveWidget
 from .files import FilesWidget
 from .job import JobWidget
 from .temp import TempWidget
@@ -12,10 +12,10 @@ from .temp import TempWidget
 class App(QMainWindow):
 
   tabs = (
-      ('Ctrl', ControlWidget),
       ('File', FilesWidget),
       ('Job', JobWidget),
-      ('Temp', TempWidget)
+      ('Temp', TempWidget),
+      ('Move', MoveWidget)
   )
 
   def __init__(self, octo_client, cfg):

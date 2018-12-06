@@ -129,6 +129,37 @@ class OctoClient(QObject):
     else:
       logging.info("sim job pause")
 
+  def home(self, x, y, z):
+    axes = []
+    if x:
+      axes.append('x')
+    if y:
+      axes.append('y')
+    if z:
+      axes.append('z')
+    if self.client:
+      try:
+        self.client.home(axes)
+      except RuntimeError as e:
+        self.error.emit(str(e))
+    else:
+      logging.info("sim home: axes=%r", axes)
+
+  def jog(self, x, y, z):
+    if x == 0.0:
+      x = None
+    if y == 0.0:
+      y = None
+    if z == 0.0:
+      z = None
+    if self.client:
+      try:
+        self.client.jog(x, y, z)
+      except RuntimeError as e:
+        self.error.emit(str(e))
+    else:
+      logging.info("sim jog: x=%s, y=%s, z=%s", x, y, z)
+
 if __name__ == '__main__':
   from PyQt5.QtCore import QCoreApplication
   import sys
