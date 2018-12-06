@@ -98,6 +98,7 @@ class DataModel(QObject):
   updateStateText = pyqtSignal(str)
   updateProgress = pyqtSignal(ProgressData)
   updateTemps = pyqtSignal(TempData)
+  updateCurrentZ = pyqtSignal(float)
 
   def __init__(self):
     super().__init__()
@@ -105,6 +106,7 @@ class DataModel(QObject):
     self._job = JobModel()
     self._state_text = ''
     self._progress = ProgressModel()
+    self._currentZ = -1.0
 
   def attach(self, client):
     client.connected.connect(self.on_connect)
@@ -122,6 +124,7 @@ class DataModel(QObject):
   def on_error(self, msg):
     self._is_connected = False
     self.disconnected.emit("ERROR: " + msg)
+    self.updateStateText.emit("Disconnected")
 
   @pyqtSlot(dict)
   def on_current(self, data):
@@ -133,6 +136,13 @@ class DataModel(QObject):
       self._update_progress(data['progress'])
     if 'temps' in data:
       self._update_temps(data['temps'])
+    if 'currentZ' in data:
+      currentZ = data['currentZ']
+      if currentZ is None:
+        currentZ = -1.0
+      if currentZ != self._currentZ:
+        self._currentZ = currentZ
+        self.updateCurrentZ.emit(currentZ)
 
   @pyqtSlot(dict)
   def on_history(self, data):
