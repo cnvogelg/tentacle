@@ -6,12 +6,14 @@ from .model import JobData, ProgressData
 
 
 class JobWidget(QWidget):
-  def __init__(self, model):
+  def __init__(self, model, client):
     super().__init__()
     self._model = model
+    self._client = client
     self._model.updateJob.connect(self.on_updatedJob)
     self._model.updateProgress.connect(self.on_updateProgress)
     self._model.updateCurrentZ.connect(self.on_updateCurrentZ)
+    self._model.updateState.connect(self.on_updateState)
     # ui
     top_layout = QVBoxLayout()
     self.setLayout(top_layout)
@@ -50,11 +52,13 @@ class JobWidget(QWidget):
     hb = QHBoxLayout()
     top_layout.addLayout(hb)
     self._b_cancel = QPushButton("Cancel")
+    self._b_cancel.clicked.connect(self.on_cancel)
     hb.addWidget(self._b_cancel)
     self._p_completion = QProgressBar(self)
     self._p_completion.setRange(0, 100)
     hb.addWidget(self._p_completion)
     self._b_pause = QPushButton("Pause")
+    self._b_pause.clicked.connect(self.on_pause)
     hb.addWidget(self._b_pause)
 
   @pyqtSlot(JobData)
@@ -81,3 +85,18 @@ class JobWidget(QWidget):
       self._l_current_z.setText("N/A")
     else:
       self._l_current_z.setText(str(z))
+
+  @pyqtSlot(str)
+  def on_updateState(self, state):
+    on = state == 'Printing'
+    self._b_cancel.setEnabled(on)
+    on = state in ('Printing', 'Paused')
+    self._b_pause.setEnabled(on)
+
+  @pyqtSlot()
+  def on_cancel(self):
+    self._client.job_cancel()
+
+  @pyqtSlot()
+  def on_pause(self):
+    self._client.job_pause()

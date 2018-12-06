@@ -33,7 +33,7 @@ class SubModel:
     # init model
     self._model = model_def
     for entry in model_def:
-      var, path, vtyp, default = entry
+      var, _, _, default = entry
       setattr(self, var, default)
 
   def update(self, obj):
@@ -95,7 +95,7 @@ class DataModel(QObject):
   disconnected = pyqtSignal(str)
   # user, file, est_print_time, tool0_fil, tool1_fil
   updateJob = pyqtSignal(JobData)
-  updateStateText = pyqtSignal(str)
+  updateState = pyqtSignal(str)
   updateProgress = pyqtSignal(ProgressData)
   updateTemps = pyqtSignal(TempData)
   updateCurrentZ = pyqtSignal(float)
@@ -124,7 +124,7 @@ class DataModel(QObject):
   def on_error(self, msg):
     self._is_connected = False
     self.disconnected.emit("ERROR: " + msg)
-    self.updateStateText.emit("Disconnected")
+    self.updateState.emit("Disconnected")
 
   @pyqtSlot(dict)
   def on_current(self, data):
@@ -169,7 +169,7 @@ class DataModel(QObject):
       txt = state['text']
       if txt != self._state_text:
         self._state_text = txt
-        self.updateStateText.emit(txt)
+        self.updateState.emit(txt)
 
   def _update_temps(self, temps):
     for t in temps:

@@ -1,9 +1,10 @@
 import logging
-import octorest
-import pprint
 import time
 import json
 import gzip
+
+import octorest
+
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
 
 
@@ -42,7 +43,7 @@ class OctoEventEmitter(QThread):
                'slicingProgress', 'plugin')
 
   def __init__(self, client, gen, retry_delay=5):
-    super(QThread, self).__init__()
+    super().__init__()
     self.client = client
     self.gen = gen
     self.retry_delay = retry_delay
@@ -88,7 +89,7 @@ class OctoClient(QObject):
   plugin = pyqtSignal(dict)
 
   def __init__(self, url=None, api_key=None, sim_file=None, sim_scale=1.0):
-    super(QObject, self).__init__()
+    super().__init__()
     if sim_file:
       self.gen = OctoSimGenerator(sim_file, sim_scale)
       self.client = None
@@ -110,6 +111,23 @@ class OctoClient(QObject):
     self._thread.wait()
     self._thread = None
 
+  def job_cancel(self):
+    if self.client:
+      try:
+        self.client.cancel()
+      except RuntimeError as e:
+        self.error.emit(str(e))
+    else:
+      logging.info("sim job cancel")
+
+  def job_pause(self):
+    if self.client:
+      try:
+        self.client.pause()
+      except RuntimeError as e:
+        self.error.emit(str(e))
+    else:
+      logging.info("sim job pause")
 
 if __name__ == '__main__':
   from PyQt5.QtCore import QCoreApplication

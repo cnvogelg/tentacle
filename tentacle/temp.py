@@ -10,10 +10,11 @@ from .util import ts_to_hms
 
 
 class TempWidget(QWidget):
-  def __init__(self, model):
+  def __init__(self, model, client):
     super().__init__()
     # receive temps
     self._model = model
+    self._client = client
     self._model.updateTemps.connect(self.on_updateTemps)
     self.min_y = 0
     self.max_y = 100

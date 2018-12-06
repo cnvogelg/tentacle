@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QWidget
 
 
 class FilesWidget(QWidget):
-  def __init__(self, model):
-    super(QWidget, self).__init__()
+  def __init__(self, model, client):
+    super().__init__()
     self._model = model
+    self._client = client

@@ -47,13 +47,14 @@ class App(QMainWindow):
     self._data_model.attach(octo_client)
     self._data_model.connected.connect(self._status_bar.showMessage)
     self._data_model.disconnected.connect(self._status_bar.showMessage)
-    self._data_model.updateStateText.connect(self._l_status.setText)
+    self._data_model.updateState.connect(self._l_status.setText)
+    self._octo_client.error.connect(self._status_bar.showMessage)
     self._octo_client.start()
 
   def _setup_tabs(self):
     self._tab_widgets = {}
     for name, cls in self.tabs:
-      w = cls(self._data_model)
+      w = cls(self._data_model, self._octo_client)
       # do we have a config
       cfg_name = name.lower()
       if cfg_name in self.cfg and hasattr(w, 'configure'):
