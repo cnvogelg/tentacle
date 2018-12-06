@@ -23,6 +23,9 @@ class TempWidget(QWidget):
     self.data_len = 320
     self.data_buf = [None] * self.data_len
     self.data_pos = 0
+    # tick step: 60s
+    self.tick_step = 60
+    self.tick_last_ts = None
     # colors
     self.col_bg = QColor(0, 0, 0)
     self.col_grid = QColor(64, 64, 64)
@@ -50,7 +53,24 @@ class TempWidget(QWidget):
     if self.data_pos == self.data_len:
       self.data_pos = self.data_len - 1
       self.data_buf = self.data_buf[1:] + [None]
+    # tick this data (will draw a vertical bar in graph)?
+    self._calc_tick(data)
+    # redraw widget
     self.repaint()
+
+  def _calc_tick(self, data):
+    ts = (data.time // self.tick_step) * self.tick_step
+    tick = False
+    if self.tick_last_ts is None:
+      self.tick_last_ts = ts
+      tick = True
+    else:
+      delta = ts - self.tick_last_ts
+      if delta >= self.tick_step:
+        self.tick_last_ts = ts
+        tick = True
+    # store tick flag
+    data.tick = tick
 
   def resizeEvent(self, e):
     s = e.size()
@@ -103,7 +123,7 @@ class TempWidget(QWidget):
     x = 1
     last_data = None
     for data in self.data_buf:
-      self._draw_data(qp, x, data, last_data)
+      self._draw_data(qp, x, h, data, last_data)
       last_data = data
       x += 1
     # texts
@@ -119,9 +139,14 @@ class TempWidget(QWidget):
       qp.drawLine(0, y, w, y)
       off += self.step_y
 
-  def _draw_data(self, qp, x, data, last_data):
+  def _draw_data(self, qp, x, h, data, last_data):
     if not data or not last_data:
       return
+    # tick?
+    if data.tick:
+      qp.setPen(self.col_grid)
+      qp.drawLine(x, 1, x, h-1)
+    # temp values
     if data.bed and last_data.bed:
       self._draw_temp(qp, x, data.bed, last_data.bed, 0)
     if data.tool0 and last_data.tool0:
