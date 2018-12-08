@@ -50,6 +50,15 @@ class SubModel:
             var, _, _, default = entry
             setattr(self, var, default)
 
+    def __repr__(self):
+        """Dump a sub model."""
+        entries = {}
+        for entry in self._model:
+            var = entry[0]
+            val = getattr(self, var)
+            entries[var] = val
+        return "%s(%r)" % (self.__class__.__name__, entries)
+
     def update(self, obj):
         """Update model with values stored in a dict object."""
         dirty = False
@@ -91,6 +100,7 @@ class JobModel(SubModel):
         model = [
             ("user", "user", str, ""),
             ("file", ("file", "display"), str, ""),
+            ("path", ("file", "path"), str, ""),
             ("size", ("file", "size"), int, 0),
             ("estTime", ("estimatedPrintTime"), float, 0.0),
             ("fl0", ("filament", "tool0", "length"), float, 0.0),
@@ -114,6 +124,75 @@ class ProgressModel(SubModel):
         super().__init__(model)
 
 
+class FileRoot:
+    """Root of a file system tree."""
+
+    def __init__(self, total, free):
+        """Create a file system root."""
+        self.total = total
+        self.free = free
+        self.childs = []
+
+    def __repr__(self):
+        """Dump root."""
+        return "Root(total=%d,free=%d,%r)" % (
+            self.total, self.free, self.childs)
+
+    def add_child(self, child):
+        """Add a new child to root."""
+        self.childs.append(child)
+        child.parent = self
+
+    def num_children(self):
+        """Return number of children."""
+        return len(self.childs)
+
+    def get_children(self):
+        """Return children array."""
+        return self.childs
+
+
+class FileDir:
+    """File system directory."""
+
+    def __init__(self, name):
+        """Create a file system directory."""
+        self.name = name
+        self.childs = []
+        self.parent = None
+
+    def __repr__(self):
+        """Dump dir."""
+        return "Dir(%r,%r)" % (self.name, self.childs)
+
+    def add_child(self, child):
+        """Add a new child to directory."""
+        self.childs.append(child)
+        child.parent = self
+
+    def num_children(self):
+        """Return number of children."""
+        return len(self.childs)
+
+    def get_children(self):
+        """Return children array."""
+        return self.childs
+
+
+class FileGCode(SubModel):
+    """A GCode File."""
+
+    def __init__(self):
+        """Create a GCode File."""
+        model = [
+            ("name", "display", str, "noname"),
+            ("date", "date", float, 0.0),
+            ("size", "size", int, 0),
+        ]
+        super().__init__(model)
+        self.parent = None
+
+
 class DataModel(QObject):
     """The DataModel instance sends out signals on data change."""
 
@@ -125,6 +204,13 @@ class DataModel(QObject):
     updateProgress = pyqtSignal(ProgressData)
     updateTemps = pyqtSignal(TempData)
     updateCurrentZ = pyqtSignal(float)
+    # file set signals
+    updateFileSet = pyqtSignal(FileRoot)
+    addedFile = pyqtSignal(str)
+    removedFile = pyqtSignal(str)
+    selectedFile = pyqtSignal(str)
+    addedFolder = pyqtSignal(str)
+    removedFolder = pyqtSignal(str)
 
     def __init__(self):
         """Create a new DataModel instance."""
@@ -134,6 +220,7 @@ class DataModel(QObject):
         self._state_text = ""
         self._progress = ProgressModel()
         self._currentZ = -1.0
+        self._selected_file = ""
 
     def attach(self, client):
         """Attach data model to octo client."""
@@ -141,6 +228,8 @@ class DataModel(QObject):
         client.current.connect(self.on_current)
         client.error.connect(self.on_error)
         client.history.connect(self.on_history)
+        client.file_set.connect(self.on_file_set)
+        client.event.connect(self.on_event)
 
     @pyqtSlot(dict)
     def on_connect(self, data):
@@ -181,6 +270,58 @@ class DataModel(QObject):
         if "temps" in data:
             self._update_temps(data["temps"])
 
+    @pyqtSlot(dict)
+    def on_file_set(self, data):
+        """React on initial files set."""
+        free = data['free']
+        total = data['total']
+        root = FileRoot(free, total)
+        self._convert_file_children(data['files'], root)
+        self.updateFileSet.emit(root)
+
+    @pyqtSlot(dict)
+    def on_event(self, data):
+        """React on events."""
+        if 'type' in data and 'payload' in data:
+            payload = data['payload']
+            event_type = data['type']
+            if event_type == 'FileAdded':
+                path = payload['path']
+                file_type = payload['type']
+                if file_type[0] == 'machinecode':
+                    self.addedFile.emit(path)
+            elif event_type == 'FileRemoved':
+                path = payload['path']
+                file_type = payload['type']
+                if file_type[0] == 'machinecode':
+                    self.removedFile.emit(path)
+            elif event_type == 'FileSelected':
+                path = payload['path']
+                self.selectedFile.emit(path)
+                self._selected_file = path
+            elif event_type == 'FileDeselected':
+                self.selectedFile.emit("")
+                self._selected_file = ""
+            elif event_type == 'FolderAdded':
+                path = payload['path']
+                self.addedFolder.emit(path)
+            elif event_type == 'FolderRemoved':
+                path = payload['path']
+                self.removedFolder.emit(path)
+
+    def _convert_file_children(self, data, node):
+        for item in data:
+            item_type = item['type']
+            name = item['display']
+            if item_type == "folder":
+                new_node = FileDir(name)
+                self._convert_file_children(item['children'], new_node)
+                node.add_child(new_node)
+            elif item_type == "machinecode":
+                new_node = FileGCode()
+                new_node.update(item)
+                node.add_child(new_node)
+
     def _update_job(self, job):
         dirty = self._job.update(job)
         if dirty:
@@ -194,6 +335,11 @@ class DataModel(QObject):
                 self._job.fl1,
             )
             self.updateJob.emit(jd)
+            # update selected file
+            file_path = self._job.path
+            if file_path != self._selected_file:
+                self._selected_file = file_path
+                self.selectedFile.emit(file_path)
 
     def _update_progress(self, progress):
         dirty = self._progress.update(progress)

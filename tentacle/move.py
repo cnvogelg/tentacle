@@ -2,6 +2,7 @@
 
 import logging
 
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QWidget,
     QGridLayout,
@@ -10,6 +11,7 @@ from PyQt5.QtWidgets import (
     QRadioButton,
     QHBoxLayout,
     QLabel,
+    QSlider
 )
 
 
@@ -23,6 +25,7 @@ class MoveWidget(QWidget):
         self._client = client
         # layout
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
         # x,y
         self._b_xn = QPushButton("x-")
@@ -61,6 +64,7 @@ class MoveWidget(QWidget):
         self._r_scale_50mm.toggled.connect(lambda: self.on_scale(50))
         # x,y
         grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(grid)
         grid.addWidget(self._b_yn, 0, 1)
         grid.addWidget(self._b_xn, 1, 0)
@@ -76,15 +80,39 @@ class MoveWidget(QWidget):
         grid.addWidget(self._b_unload, 3, 2, 1, 2)
         # scale
         lay = QHBoxLayout()
+        lay.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(lay)
         lay.addWidget(QLabel("Scale (mm)"))
         lay.addWidget(self._r_scale_01mm)
         lay.addWidget(self._r_scale_1mm)
         lay.addWidget(self._r_scale_10mm)
         lay.addWidget(self._r_scale_50mm)
+        # feedrate
+        lay = QHBoxLayout()
+        layout.addLayout(lay)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(QLabel("Feed Rate"))
+        self._s_feed_rate = self._setup_feed_rate_slider()
+        self._s_feed_rate.valueChanged.connect(self._on_feed_rate_slider)
+        lay.addWidget(self._s_feed_rate)
+        self._b_reset_rate = QPushButton(" 100% ")
+        self._b_reset_rate.clicked.connect(self._on_feed_reset_button)
+        lay.addWidget(self._b_reset_rate)
+        # fill ui
+        layout.addStretch(1)
         # params
         self._scale = 0.1
         self._unload_z = 100
+        self._feed_rate = 100
+
+    def _setup_feed_rate_slider(self):
+        slider = QSlider(Qt.Horizontal)
+        slider.setMinimum(50)
+        slider.setMaximum(150)
+        slider.setValue(100)
+        slider.setTickPosition(QSlider.TicksBelow)
+        slider.setTickInterval(10)
+        return slider
 
     def configure(self, cfg):
         """Configure widget from config."""
@@ -113,3 +141,13 @@ class MoveWidget(QWidget):
         z *= self._scale
         logging.info("move: x=%s, y=%s, z=%s", x, y, z)
         self._client.jog(x, y, z)
+
+    def _on_feed_rate_slider(self):
+        value = self._s_feed_rate.value()
+        self._b_reset_rate.setText("%03d%%" % value)
+        self._feed_rate = value
+
+    def _on_feed_reset_button(self):
+        self._b_reset_rate.setText("100%")
+        self._s_feed_rate.setValue(100)
+        self._feed_rate = 100

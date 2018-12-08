@@ -132,7 +132,7 @@ class OctoClient(QObject):
             self.gen_factory = lambda: OctoSimGenerator(sim_file, sim_scale)
             self.client_factory = lambda: None
         else:
-            self.gen_factory = octorest.XHRStreamingGenerator(url)
+            self.gen_factory = lambda: octorest.XHRStreamingGenerator(url)
             if api_key:
                 self.client_factory = lambda: octorest.OctoRest(
                     url=url, apikey=api_key)
