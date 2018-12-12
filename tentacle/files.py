@@ -29,7 +29,7 @@ class FileTreeModel(QAbstractItemModel):
 
     def columnCount(self, _):
         """Return number of columns in parent."""
-        return 3
+        return 1
 
     def index(self, row, column, parent):
         """Return index in parent."""
@@ -82,16 +82,7 @@ class FileTreeModel(QAbstractItemModel):
         node = index.internalPointer()
         if column == 0:
             return node.name
-        elif column == 1:
-            if hasattr(node, 'size'):
-                return str(node.size)
-            else:
-                return "0"
-        elif column == 2:
-            if hasattr(node, 'data'):
-                return str(node.date)
-            else:
-                return ""
+        return ""
 
     def flags(self, index):
         """Return flags of tree item."""
@@ -108,8 +99,6 @@ class FileTreeModel(QAbstractItemModel):
 
 class FilesWidget(QWidget):
     """File Set Tab shows all files."""
-
-    NAME, SIZE, DATE = range(3)
 
     def __init__(self, model, client):
         """Create a new file set tab."""

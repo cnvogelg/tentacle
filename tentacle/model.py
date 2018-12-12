@@ -1,5 +1,7 @@
 """Process OctoPrint Data Model and Emit Python Model Objects."""
 
+import logging
+
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 
 
@@ -124,34 +126,6 @@ class ProgressModel(SubModel):
         super().__init__(model)
 
 
-class FileRoot:
-    """Root of a file system tree."""
-
-    def __init__(self, total, free):
-        """Create a file system root."""
-        self.total = total
-        self.free = free
-        self.childs = []
-
-    def __repr__(self):
-        """Dump root."""
-        return "Root(total=%d,free=%d,%r)" % (
-            self.total, self.free, self.childs)
-
-    def add_child(self, child):
-        """Add a new child to root."""
-        self.childs.append(child)
-        child.parent = self
-
-    def num_children(self):
-        """Return number of children."""
-        return len(self.childs)
-
-    def get_children(self):
-        """Return children array."""
-        return self.childs
-
-
 class FileDir:
     """File system directory."""
 
@@ -178,19 +152,48 @@ class FileDir:
         """Return children array."""
         return self.childs
 
+    def get_child_by_name(self, name):
+        """Return child with given name or None."""
+        for c in self.childs:
+            if c.name == name:
+                return c
 
-class FileGCode(SubModel):
+    def remove_child_by_name(self, name):
+        """Remove a child given by name."""
+        i = 0
+        for c in self.childs:
+            if c.name == name:
+                del self.childs[i]
+                return True
+            i += 1
+        return False
+
+
+class FileRoot(FileDir):
+    """Root of a file system tree."""
+
+    def __init__(self, total, free):
+        """Create a file system root."""
+        super().__init__("<Root>")
+        self.total = total
+        self.free = free
+
+    def __repr__(self):
+        """Dump root."""
+        return "Root(total=%d,free=%d,%r)" % (
+            self.total, self.free, self.childs)
+
+
+class FileGCode:
     """A GCode File."""
 
-    def __init__(self):
+    def __init__(self, name):
         """Create a GCode File."""
-        model = [
-            ("name", "display", str, "noname"),
-            ("date", "date", float, 0.0),
-            ("size", "size", int, 0),
-        ]
-        super().__init__(model)
+        self.name = name
         self.parent = None
+
+    def __repr__(self):
+        return "FileGCode(%s)" % self.name
 
 
 class DataModel(QObject):
@@ -221,6 +224,7 @@ class DataModel(QObject):
         self._progress = ProgressModel()
         self._currentZ = -1.0
         self._selected_file = ""
+        self._files = None
 
     def attach(self, client):
         """Attach data model to octo client."""
@@ -278,6 +282,7 @@ class DataModel(QObject):
         root = FileRoot(free, total)
         self._convert_file_children(data['files'], root)
         self.updateFileSet.emit(root)
+        self._files = root
 
     @pyqtSlot(dict)
     def on_event(self, data):
@@ -289,12 +294,12 @@ class DataModel(QObject):
                 path = payload['path']
                 file_type = payload['type']
                 if file_type[0] == 'machinecode':
-                    self.addedFile.emit(path)
+                    self._files_add_gcode_file(path)
             elif event_type == 'FileRemoved':
                 path = payload['path']
                 file_type = payload['type']
                 if file_type[0] == 'machinecode':
-                    self.removedFile.emit(path)
+                    self._files_del_gcode_file(path)
             elif event_type == 'FileSelected':
                 path = payload['path']
                 self.selectedFile.emit(path)
@@ -304,10 +309,71 @@ class DataModel(QObject):
                 self._selected_file = ""
             elif event_type == 'FolderAdded':
                 path = payload['path']
-                self.addedFolder.emit(path)
+                self._files_add_dir(path)
             elif event_type == 'FolderRemoved':
                 path = payload['path']
+                self._files_del_dir(path)
+
+    def _get_dir_and_name(self, path):
+        p = path.split('/')
+        n = len(p)
+        if n == 0:
+            logging.error("invalid path: %s", path)
+            return None, None
+        elif n == 1:
+            return self._files, p[0]
+        else:
+            node = self._files
+            for name in p[:-1]:
+                node = node.get_child_by_name(name)
+                if node is None:
+                    logging.error("invalid path: %s", path)
+                    return None, None
+            return node, p[-1]
+
+    def _files_add_gcode_file(self, path):
+        dir_node, name = self._get_dir_and_name(path)
+        if dir_node:
+            logging.info("add file %s to %r", name, dir_node)
+            dir_node.add_child(FileGCode(name))
+            self.addedFile.emit(path)
+            self.updateFileSet.emit(self._files)
+        else:
+            logging.error("invalid add file %s", path)
+
+    def _files_del_gcode_file(self, path):
+        dir_node, name = self._get_dir_and_name(path)
+        if dir_node:
+            if dir_node.remove_child_by_name(name):
+                logging.info("del file %s in %r", name, dir_node)
+                self.removedFile.emit(path)
+                self.updateFileSet.emit(self._files)
+            else:
+                logging.error("can't remove file %s", path)
+        else:
+            logging.error("invalid del file %s", path)
+
+    def _files_add_dir(self, path):
+        dir_node, name = self._get_dir_and_name(path)
+        if dir_node:
+            logging.info("add dir %s to %r", name, dir_node)
+            dir_node.add_child(FileDir(name))
+            self.addedFolder.emit(path)
+            self.updateFileSet.emit(self._files)
+        else:
+            logging.error("invalid add dir %s", path)
+
+    def _files_del_dir(self, path):
+        dir_node, name = self._get_dir_and_name(path)
+        if dir_node:
+            if dir_node.remove_child_by_name(name):
+                logging.info("del dir %s in %r", name, dir_node)
                 self.removedFolder.emit(path)
+                self.updateFileSet.emit(self._files)
+            else:
+                logging.error("can't remove dir %s", path)
+        else:
+            logging.error("invalid del dir %s", path)
 
     def _convert_file_children(self, data, node):
         for item in data:
@@ -318,8 +384,7 @@ class DataModel(QObject):
                 self._convert_file_children(item['children'], new_node)
                 node.add_child(new_node)
             elif item_type == "machinecode":
-                new_node = FileGCode()
-                new_node.update(item)
+                new_node = FileGCode(name)
                 node.add_child(new_node)
 
     def _update_job(self, job):

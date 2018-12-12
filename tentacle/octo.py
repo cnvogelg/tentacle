@@ -87,12 +87,15 @@ class OctoEventEmitter(QThread):
             try:
                 read_loop = gen.read_loop()
                 for msg in read_loop:
+                    logging.debug("msg: %r", msg)
                     if not self.stay:
                         break
                     for t in self.msg_types:
                         if t in msg:
+                            logging.debug("post signal: %s", t)
                             signal = getattr(self.client, t)
                             signal.emit(msg[t])
+                            logging.debug("done")
                 # end of sim. never reached on 'real' OctoPrint link
                 self.client.error.emit("EOF reached")
                 self.client.setClient.emit(None)
@@ -152,6 +155,20 @@ class OctoClient(QObject):
         self.stopEmitter.emit()
         self._thread.wait()
         self._thread = None
+
+    def files_info(self, location, file_name):
+        """Get info on file."""
+        if self.client:
+            try:
+                logging.info("files_info(%s, %s)", location, file_name)
+                res = self.files_info(location, file_name)
+                logging.info("result: %r", res)
+                return res
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim get files info")
+            return {}
 
     def job_cancel(self):
         """Cancel current job."""
