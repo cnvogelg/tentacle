@@ -148,6 +148,7 @@ class OctoClient(QObject):
         self._thread = OctoEventEmitter(
             self, self.gen_factory, self.client_factory)
         self.stopEmitter.connect(self._thread.stop)
+        self.setClient.connect(self._set_client)
         self._thread.start()
 
     def stop(self):
@@ -155,6 +156,9 @@ class OctoClient(QObject):
         self.stopEmitter.emit()
         self._thread.wait()
         self._thread = None
+
+    def _set_client(self, client):
+        self.client = client
 
     def files_info(self, location, file_name):
         """Get info on file."""
@@ -222,6 +226,46 @@ class OctoClient(QObject):
                 self.error.emit(str(e))
         else:
             logging.info("sim jog: x=%s, y=%s, z=%s", x, y, z)
+
+    def select(self, name, start_print=False):
+        """Select a file for printing."""
+        if self.client:
+            try:
+                self.client.select(name, print=start_print)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim select: %s print=%s", name, print)
+
+    def print(self):
+        """Print currently selected file."""
+        if self.client:
+            try:
+                self.client.print()
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim print")
+
+    def delete(self, name):
+        """Delete given file."""
+        if self.client:
+            try:
+                self.client.delete(name)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim delete: %s", name)
+
+    def file_info(self, name):
+        """Return info on given file."""
+        if self.client:
+            try:
+                return self.client.files_info("local", name)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim files info: %s", name)
 
 
 if __name__ == "__main__":

@@ -126,14 +126,29 @@ class ProgressModel(SubModel):
         super().__init__(model)
 
 
-class FileDir:
+class FileBase:
+    """File node base class."""
+
+    def __init__(self, name):
+        """Initialize base node."""
+        self.name = name
+        self.parent = None
+
+    def get_path(self):
+        """Return file path up to root."""
+        if self.parent and self.parent.name != "":
+            return "/".join((self.parent.get_path(), self.name))
+        else:
+            return self.name
+
+
+class FileDir(FileBase):
     """File system directory."""
 
     def __init__(self, name):
         """Create a file system directory."""
-        self.name = name
+        super().__init__(name)
         self.childs = []
-        self.parent = None
 
     def __repr__(self):
         """Dump dir."""
@@ -174,7 +189,7 @@ class FileRoot(FileDir):
 
     def __init__(self, total, free):
         """Create a file system root."""
-        super().__init__("<Root>")
+        super().__init__("")
         self.total = total
         self.free = free
 
@@ -184,13 +199,8 @@ class FileRoot(FileDir):
             self.total, self.free, self.childs)
 
 
-class FileGCode:
+class FileGCode(FileBase):
     """A GCode File."""
-
-    def __init__(self, name):
-        """Create a GCode File."""
-        self.name = name
-        self.parent = None
 
     def __repr__(self):
         """Represent gcode file."""

@@ -2,13 +2,13 @@
 
 import logging
 
-from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QSize
+from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QSize, pyqtSlot
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton,
-    QTreeView, QStyle
+    QTreeView, QStyle, QMessageBox
 )
 
-from .model import FileDir
+from .model import FileDir, FileGCode
 
 
 class FileTreeModel(QAbstractItemModel):
@@ -137,19 +137,81 @@ class FilesWidget(QWidget):
         hlayout = QHBoxLayout()
         layout.addLayout(hlayout)
         self._b_select = QPushButton("Select")
+        self._b_select.clicked.connect(self._on_select)
         hlayout.addWidget(self._b_select)
         self._b_print = QPushButton("Print")
+        self._b_print.clicked.connect(self._on_print)
         hlayout.addWidget(self._b_print)
         self._b_info = QPushButton("Info")
+        self._b_info.clicked.connect(self._on_info)
         hlayout.addWidget(self._b_info)
         self._b_delete = QPushButton("Delete")
+        self._b_delete.clicked.connect(self._on_delete)
         hlayout.addWidget(self._b_delete)
+        self._enable_buttons()
 
     def _on_update_file_set(self, file_set):
         self._file_set = file_set
         self._model = FileTreeModel(file_set, self.style())
         self._t_files.setModel(self._model)
+        sel_model = self._t_files.selectionModel()
+        sel_model.selectionChanged.connect(self._on_selection_change)
 
     def _on_selected_file(self, path):
         logging.info("selected file: %s", path)
         self._l_selected_file.setText(path)
+
+    def _on_selection_change(self):
+        self._enable_buttons()
+
+    def _enable_buttons(self):
+        is_gcode = False
+        is_dir = False
+        cur_idx = self._t_files.currentIndex()
+        if cur_idx:
+            data = cur_idx.internalPointer()
+            if data:
+                is_gcode = isinstance(data, FileGCode)
+                is_dir = isinstance(data, FileDir)
+        self._b_select.setEnabled(is_gcode)
+        self._b_print.setEnabled(is_gcode)
+        self._b_info.setEnabled(is_gcode)
+        self._b_delete.setEnabled(is_gcode or is_dir)
+
+    def _get_current_path(self):
+        cur_idx = self._t_files.currentIndex()
+        if cur_idx:
+            data = cur_idx.internalPointer()
+            if data:
+                return data.get_path()
+
+    @pyqtSlot()
+    def _on_select(self):
+        self._client.select(self._get_current_path())
+
+    @pyqtSlot()
+    def _on_print(self):
+        self._client.select(self._get_current_path(), True)
+
+    @pyqtSlot()
+    def _on_info(self):
+        info = self._client.file_info(self._get_current_path())
+        from pprint import pprint
+        pprint(info)
+        lines = [
+            "Name: " + info['display'],
+            "Size: " + str(info['size'])
+        ]
+        gcode_analysis = info['gcodeAnalysis']
+        if gcode_analysis:
+            dim = gcode_analysis['dimensions']
+            lines += [
+                "SizeX: %8.3f" % dim['width'],
+                "SizeY: %8.3f" % dim['height'],
+                "SizeZ: %8.3f" % dim['depth'],
+            ]
+        QMessageBox.information(self, "File Info", "\n".join(lines))
+
+    @pyqtSlot()
+    def _on_delete(self):
+        self._client.delete(self._get_current_path())
