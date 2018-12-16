@@ -193,6 +193,7 @@ class FileGCode:
         self.parent = None
 
     def __repr__(self):
+        """Represent gcode file."""
         return "FileGCode(%s)" % self.name
 
 

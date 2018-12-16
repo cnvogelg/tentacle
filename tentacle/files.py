@@ -5,17 +5,20 @@ import logging
 from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QSize
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton,
-    QTreeView
+    QTreeView, QStyle
 )
+
+from .model import FileDir
 
 
 class FileTreeModel(QAbstractItemModel):
     """Represent a file system tree."""
 
-    def __init__(self, root, parent=None):
+    def __init__(self, root, style, parent=None):
         """Create model with root."""
         super().__init__(parent)
         self.root = root
+        self.style = style
 
     def rowCount(self, parent):
         """Return number of rows in parent."""
@@ -72,14 +75,20 @@ class FileTreeModel(QAbstractItemModel):
         if not index.isValid():
             return None
 
+        node = index.internalPointer()
+
         column = index.column()
         if role == Qt.SizeHintRole:
             w = 160 if column == 0 else 70
             return QSize(w, 20)
+        elif role == Qt.DecorationRole:
+            if isinstance(node, FileDir):
+                return self.style.standardIcon(QStyle.SP_DirIcon)
+            else:
+                return self.style.standardIcon(QStyle.SP_FileIcon)
         elif role != Qt.DisplayRole:
             return None
 
-        node = index.internalPointer()
         if column == 0:
             return node.name
         return ""
@@ -123,6 +132,7 @@ class FilesWidget(QWidget):
         layout.addWidget(self._t_files)
         self._t_files.setRootIsDecorated(False)
         self._t_files.setAlternatingRowColors(True)
+        self._t_files.setHeaderHidden(True)
         # button row
         hlayout = QHBoxLayout()
         layout.addLayout(hlayout)
@@ -137,7 +147,7 @@ class FilesWidget(QWidget):
 
     def _on_update_file_set(self, file_set):
         self._file_set = file_set
-        self._model = FileTreeModel(file_set)
+        self._model = FileTreeModel(file_set, self.style())
         self._t_files.setModel(self._model)
 
     def _on_selected_file(self, path):
