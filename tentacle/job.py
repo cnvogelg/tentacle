@@ -2,17 +2,18 @@
 
 from PyQt5.QtWidgets import (
     QWidget,
-    QGridLayout,
     QVBoxLayout,
-    QLabel,
     QProgressBar,
     QHBoxLayout,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView
 )
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot, Qt
 
 from .util import ts_to_hms
-from .model import JobData, ProgressData
+from .model import JobData, ProgressData, TempData
 
 
 class JobWidget(QWidget):
@@ -27,42 +28,61 @@ class JobWidget(QWidget):
         self._model.updateProgress.connect(self.on_updateProgress)
         self._model.updateCurrentZ.connect(self.on_updateCurrentZ)
         self._model.updateState.connect(self.on_updateState)
+        self._model.updateTemps.connect(self.on_updateTemps)
         # ui
         top_layout = QVBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(top_layout)
-        grid_layout = QGridLayout()
-        top_layout.addLayout(grid_layout)
-        grid_layout.setColumnStretch(1, 10)
-        grid_layout.setColumnStretch(2, 10)
-        # job
-        self._l_user = QLabel(self)
-        self._l_file_name = QLabel(self)
-        self._l_f0 = QLabel(self)
-        self._l_f1 = QLabel(self)
-        self._l_file_size = QLabel(self)
-        self._l_current_z = QLabel(self)
-        grid_layout.addWidget(QLabel("File"), 0, 0)
-        grid_layout.addWidget(self._l_file_name, 0, 1)
-        grid_layout.addWidget(self._l_user, 0, 2)
-        grid_layout.addWidget(QLabel("Filament"), 1, 0)
-        grid_layout.addWidget(self._l_f0, 1, 1)
-        grid_layout.addWidget(self._l_f1, 1, 2)
-        grid_layout.addWidget(QLabel("CurrentZ"), 2, 0)
-        grid_layout.addWidget(self._l_current_z, 2, 1)
+        # table
+        self._table = QTableWidget(self)
+        t = self._table
+        t.setRowCount(6)
+        t.setColumnCount(3)
+        th = t.horizontalHeader()
+        th.hide()
+        th.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        tv = t.verticalHeader()
+        tv.hide()
+        tv.setSectionResizeMode(QHeaderView.ResizeToContents)
+        t.setEditTriggers(t.NoEditTriggers)
+        t.setSelectionMode(t.NoSelection)
+        t.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        t.setFocusPolicy(Qt.NoFocus)
+        top_layout.addWidget(self._table, 10, Qt.AlignHCenter)
+        # fill table
+        self._l_user = QTableWidgetItem()
+        self._l_file_name = QTableWidgetItem()
+        self._l_f0 = QTableWidgetItem()
+        self._l_f1 = QTableWidgetItem()
+        self._l_file_size = QTableWidgetItem()
+        self._l_current_z = QTableWidgetItem()
+        t.setItem(0, 0, QTableWidgetItem("File"))
+        t.setItem(0, 1, self._l_file_name)
+        t.setItem(0, 2, self._l_user)
+        t.setItem(1, 0, QTableWidgetItem("Filament"))
+        t.setItem(1, 1, self._l_f0)
+        t.setItem(1, 2, self._l_f1)
+        t.setItem(2, 0, QTableWidgetItem("CurrentZ"))
+        t.setItem(2, 1, self._l_current_z)
         # progress
-        self._l_time = QLabel(self)
-        self._l_time_left = QLabel(self)
-        self._l_left_origin = QLabel(self)
-        self._l_file_pos = QLabel(self)
-        grid_layout.addWidget(self._l_left_origin, 2, 2)
-        grid_layout.addWidget(QLabel("Time"), 3, 0)
-        grid_layout.addWidget(self._l_time, 3, 1)
-        grid_layout.addWidget(self._l_time_left, 3, 2)
-        grid_layout.addWidget(QLabel("Size"), 4, 0)
-        grid_layout.addWidget(self._l_file_pos, 4, 1)
-        grid_layout.addWidget(self._l_file_size, 4, 2)
-        # progress bar
+        self._l_time = QTableWidgetItem()
+        self._l_time_left = QTableWidgetItem()
+        self._l_file_pos = QTableWidgetItem()
+        t.setItem(3, 0, QTableWidgetItem("Time"))
+        t.setItem(3, 1, self._l_time)
+        t.setItem(3, 2, self._l_time_left)
+        t.setItem(4, 0, QTableWidgetItem("Size"))
+        t.setItem(4, 1, self._l_file_pos)
+        t.setItem(4, 2, self._l_file_size)
+        # temp
+        self._l_t0 = QTableWidgetItem()
+        self._l_t1 = QTableWidgetItem()
+        t.setItem(5, 0, QTableWidgetItem("Temps"))
+        t.setItem(5, 1, self._l_t0)
+        t.setItem(5, 2, self._l_t1)
+        # progress bar with control buttons
         hb = QHBoxLayout()
+        hb.setContentsMargins(0, 0, 0, 0)
         top_layout.addLayout(hb)
         self._b_cancel = QPushButton("Cancel")
         self._b_cancel.clicked.connect(self.on_cancel)
@@ -90,8 +110,9 @@ class JobWidget(QWidget):
         hms = ts_to_hms(data.time)
         self._l_time.setText("%02d:%02d:%02d" % hms)
         hms = ts_to_hms(data.time_left)
-        self._l_time_left.setText("%02d:%02d:%02d" % hms)
-        self._l_left_origin.setText(data.left_origin)
+        txt = "%02d:%02d:%02d" % hms
+        orig = data.left_origin[0:3]
+        self._l_time_left.setText("%s  (%s)" % (txt, orig))
         self._l_file_pos.setText(str(data.file_pos))
 
     @pyqtSlot(float)
@@ -101,6 +122,16 @@ class JobWidget(QWidget):
             self._l_current_z.setText("N/A")
         else:
             self._l_current_z.setText(str(z))
+
+    @pyqtSlot(TempData)
+    def on_updateTemps(self, data):
+        """Handle Temp Update."""
+        t0 = data.tool0
+        t1 = data.tool1
+        txt0 = "%6.2f / %6.2f" % t0
+        txt1 = "%6.2f / %6.2f" % t1
+        self._l_t0.setText(txt0)
+        self._l_t1.setText(txt1)
 
     @pyqtSlot(str)
     def on_updateState(self, state):
