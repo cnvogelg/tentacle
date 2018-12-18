@@ -28,6 +28,7 @@ class GCodeWidget(QWidget):
         self._reset_range()
         self._width = 0
         self._height = 0
+        self._tool = 0
 
     def _reset_range(self):
         self._x_range = [10000.0, -10000.0]
@@ -46,6 +47,10 @@ class GCodeWidget(QWidget):
             self._parse_move(words[1:], True)
         elif cmd == 'G28':  # auto home
             self._reset_state()
+        elif cmd == 'T0':
+            self._tool = 0
+        elif cmd == 'T1':
+            self._tool = 1
         else:
             logging.info("gcode: %s", line)
 
@@ -68,7 +73,7 @@ class GCodeWidget(QWidget):
         # store new line
         x = self._pos[0]
         y = self._pos[1]
-        self._slice.append((x, y, extrude))
+        self._slice.append((x, y, extrude, self._tool))
         # adjust min/max
         self._adjust_range(x, y)
 
@@ -122,7 +127,7 @@ class GCodeWidget(QWidget):
         qp.drawRect(off[0], off[1], size[0], size[1])
         # draw sketch
         rapid_col = QColor(0, 220, 0)
-        extrude_col = QColor(255, 255, 0)
+        tool_cols = (QColor(255, 255, 0), QColor(0, 255, 255))
         last_pos = None
         last_col = None
         for seg in self._slice:
@@ -130,8 +135,9 @@ class GCodeWidget(QWidget):
             if last_pos:
                 # adjust color
                 extrude = seg[2]
+                tool = seg[3]
                 if extrude:
-                    col = extrude_col
+                    col = tool_cols[tool]
                 else:
                     col = rapid_col
                 if col != last_col:
