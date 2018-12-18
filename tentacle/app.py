@@ -9,6 +9,7 @@ from .move import MoveWidget
 from .files import FilesWidget
 from .job import JobWidget
 from .temp import TempWidget
+from .gcode import GCodeWidget
 
 
 class App(QMainWindow):
@@ -19,6 +20,7 @@ class App(QMainWindow):
         ("Job", JobWidget),
         ("Temp", TempWidget),
         ("Move", MoveWidget),
+        ("GCode", GCodeWidget)
     )
 
     def __init__(self, octo_client, cfg):
@@ -54,6 +56,7 @@ class App(QMainWindow):
         self._data_model.connected.connect(self._status_bar.showMessage)
         self._data_model.disconnected.connect(self._status_bar.showMessage)
         self._data_model.updateState.connect(self._l_status.setText)
+        self._data_model.waitTemp.connect(self._wait_temp)
         self._octo_client.error.connect(self._status_bar.showMessage)
         self._octo_client.start()
 
@@ -75,3 +78,9 @@ class App(QMainWindow):
         self._status_bar.addPermanentWidget(self._l_status)
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("Welcome to tentacle!", 2000)
+
+    def _wait_temp(self, waiting):
+        if waiting:
+            self._l_status.setText("Wait Temp")
+        else:
+            self._l_status.setText("Printing")

@@ -218,6 +218,8 @@ class DataModel(QObject):
     updateProgress = pyqtSignal(ProgressData)
     updateTemps = pyqtSignal(TempData)
     updateCurrentZ = pyqtSignal(float)
+    addSerialLog = pyqtSignal(str)
+    waitTemp = pyqtSignal(bool)
     # file set signals
     updateFileSet = pyqtSignal(FileRoot)
     addedFile = pyqtSignal(str)
@@ -236,6 +238,7 @@ class DataModel(QObject):
         self._currentZ = -1.0
         self._selected_file = ""
         self._files = None
+        self._wait_temp = False
 
     def attach(self, client):
         """Attach data model to octo client."""
@@ -278,12 +281,16 @@ class DataModel(QObject):
             if currentZ != self._currentZ:
                 self._currentZ = currentZ
                 self.updateCurrentZ.emit(currentZ)
+        if "logs" in data:
+            self._parse_logs(data['logs'])
 
     @pyqtSlot(dict)
     def on_history(self, data):
         """React on 'history' event."""
         if "temps" in data:
             self._update_temps(data["temps"])
+        if "logs" in data:
+            self._parse_logs(data['logs'])
 
     @pyqtSlot(dict)
     def on_file_set(self, data):
@@ -455,3 +462,40 @@ class DataModel(QObject):
             if "target" in d:
                 target = d["target"]
         return actual, target
+
+    def _parse_logs(self, logs):
+        for entry in logs:
+            if entry.startswith("Send: "):
+                line = entry[6:]
+                gcode = self._sanitize_gcode(line)
+                if gcode:
+                    self.addSerialLog.emit(gcode)
+                    self._handle_temp_wait(gcode)
+
+    def _handle_temp_wait(self, gcode):
+        # wait temp?
+        if gcode.startswith('M109'):
+            if not self._wait_temp:
+                self._wait_temp = True
+                self.waitTemp.emit(True)
+        else:
+            if self._wait_temp:
+                self._wait_temp = False
+                self.waitTemp.emit(False)
+
+    def _sanitize_gcode(self, line):
+        # skip line number
+        if line[0] == 'N':
+            pos = line.find(' ')
+            line = line[pos+1:]
+        # skip checksum
+        pos = line.rfind('*')
+        if pos != -1:
+            line = line[0:pos]
+        # ignore temp calls
+        if line == 'M105':
+            return None
+        # ignore messages
+        if line.startswith('M117'):
+            return None
+        return line
