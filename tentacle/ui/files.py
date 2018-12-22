@@ -115,8 +115,8 @@ class FilesWidget(QWidget):
         self._model = model
         self._client = client
         # connect to model
-        self._model.updateFileSet.connect(self._on_update_file_set)
-        self._model.selectedFile.connect(self._on_selected_file)
+        self._model.files.updateFileSet.connect(self._on_update_file_set)
+        self._model.files.selectedFile.connect(self._on_selected_file)
         # layout
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)

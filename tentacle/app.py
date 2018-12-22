@@ -4,7 +4,7 @@ import logging
 from PyQt5.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QLabel
 from PyQt5.QtCore import Qt
 
-from tentacle.client import DataModel
+from tentacle.client import DataModel, FileModel
 from tentacle.ui import (
     MoveWidget, FilesWidget, JobWidget, TempWidget, GCodeWidget
 )
@@ -55,6 +55,9 @@ class App(QMainWindow):
         self._data_model.disconnected.connect(self._status_bar.showMessage)
         self._data_model.updateState.connect(self._l_status.setText)
         self._data_model.waitTemp.connect(self._wait_temp)
+        self._file_model = FileModel()
+        self._file_model.attach(octo_client)
+        self._data_model.files = self._file_model
         self._octo_client.error.connect(self._status_bar.showMessage)
         self._octo_client.start()
 

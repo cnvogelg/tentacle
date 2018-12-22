@@ -2,7 +2,10 @@
 
 from .model import (  # noqa: F401
     JobData, ProgressData, TempData,
-    FileBase, FileDir, FileRoot, FileGCode,
     DataModel
+)
+from .files import (  # noqa: F401
+    FileBase, FileDir, FileRoot, FileGCode,
+    FileModel
 )
 from .octo import OctoClient  # noqa: F401
