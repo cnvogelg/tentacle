@@ -17,25 +17,53 @@ class GCodeWidget(QWidget):
         # receive temps
         self._model = model
         self._client = client
-        self._model.addSerialLog.connect(self.on_add_serial_log)
+        self._model.addSerialLog.connect(self._on_add_serial_log)
+        self._model.updateBusyFiles.connect(self._on_update_busy_files)
         # state
+        self._enabled = False
         self._reset_state()
 
     def _reset_state(self):
         self._pos = [0.0, 0.0, 0.0]
         self._slice = []
         self._cur_z = 0.0
-        self._reset_range()
         self._width = 0
         self._height = 0
         self._tool = 0
+        self._file = None
+        self._x_range = None
+        self._y_range = None
+        self._z_range = None
+        self._last_drawn = 0
 
-    def _reset_range(self):
-        self._x_range = [10000.0, -10000.0]
-        self._y_range = [10000.0, -10000.0]
+    @pyqtSlot(object)
+    def _on_update_busy_files(self, files):
+        if not files:
+            logging.info("gcode: off")
+            self._enabled = False
+        else:
+            self._enabled = True
+            self._reset_state()
+            self._file = files[0]
+            if not self._get_meta(self._file):
+                self._enabled = False
+
+    def _get_meta(self, name):
+        logging.info("gcode: get meta for: %s", name)
+        meta = self._model.files.get_meta(name)
+        if meta:
+            self._x_range = meta.range_x
+            self._y_range = meta.range_y
+            self._z_range = meta.range_z
+            logging.info("gcode ranges: %r, %r, %r",
+                         self._x_range, self._y_range, self._z_range)
+            return True
+        else:
+            logging.error("gcode: no meta for: %s", name)
+            return False
 
     @pyqtSlot(str)
-    def on_add_serial_log(self, line):
+    def _on_add_serial_log(self, line):
         """Process gcode."""
         words = line.split()
         if not words:
@@ -65,30 +93,25 @@ class GCodeWidget(QWidget):
         if self._cur_z != self._pos[2]:
             self.repaint()
             self._cur_z = self._pos[2]
-            logging.info("last slice: lines=%d, range:x=%r, y=%r, z=%s",
-                         len(self._slice), self._x_range, self._y_range,
-                         self._cur_z)
+            logging.info("last slice: lines=%d, z=%s",
+                         len(self._slice), self._cur_z)
             self._slice = []
-            self._reset_range()
+            self._last_drawn = time.time()
         # store new line
         x = self._pos[0]
         y = self._pos[1]
         self._slice.append((x, y, extrude, self._tool))
-        # adjust min/max
-        self._adjust_range(x, y)
-
-    def _adjust_range(self, x, y):
-        if x < self._x_range[0]:
-            self._x_range[0] = x
-        if x > self._x_range[1]:
-            self._x_range[1] = x
-        if y < self._y_range[0]:
-            self._y_range[0] = y
-        if y > self._y_range[1]:
-            self._y_range[1] = y
+        # repaint every 100ms
+        t = time.time()
+        delta = t - self._last_drawn
+        if delta > 0.1:
+            self.repaint()
+            self._last_drawn = t
 
     def paintEvent(self, _):
         """Redraw graph."""
+        if not self._enabled:
+            return
         t = time.time()
         qp = QPainter()
         qp.begin(self)
@@ -147,3 +170,9 @@ class GCodeWidget(QWidget):
                 # pylint: disable=E1136
                 qp.drawLine(last_pos[0], last_pos[1], pos[0], pos[1])
             last_pos = pos
+        # draw cursor
+        cursor_col = QColor(240, 240, 240)
+        cur_pos = map_func(self._pos)
+        qp.setPen(cursor_col)
+        qp.drawLine(cur_pos[0] - 5, cur_pos[1], cur_pos[0] + 5, cur_pos[1])
+        qp.drawLine(cur_pos[0], cur_pos[1] - 5, cur_pos[0], cur_pos[1] + 5)

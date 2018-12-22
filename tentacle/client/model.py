@@ -135,6 +135,7 @@ class DataModel(QObject):
     updateProgress = pyqtSignal(ProgressData)
     updateTemps = pyqtSignal(TempData)
     updateCurrentZ = pyqtSignal(float)
+    updateBusyFiles = pyqtSignal(object)
     addSerialLog = pyqtSignal(str)
     waitTemp = pyqtSignal(bool)
 
@@ -147,6 +148,7 @@ class DataModel(QObject):
         self._progress = ProgressModel()
         self._currentZ = -1.0
         self._wait_temp = False
+        self._busy_files = None
 
     def attach(self, client):
         """Attach data model to octo client."""
@@ -189,6 +191,8 @@ class DataModel(QObject):
                 self.updateCurrentZ.emit(currentZ)
         if "logs" in data:
             self._parse_logs(data['logs'])
+        if "busyFiles" in data:
+            self._update_busy_files(data['busyFiles'])
 
     @pyqtSlot(dict)
     def on_history(self, data):
@@ -197,6 +201,16 @@ class DataModel(QObject):
             self._update_temps(data["temps"])
         if "logs" in data:
             self._parse_logs(data['logs'])
+
+    def _update_busy_files(self, busy_files):
+        file_list = []
+        for entry in busy_files:
+            # local files for now
+            if entry['origin'] == 'local':
+                file_list.append(entry['path'])
+        if file_list != self._busy_files:
+            self._busy_files = file_list
+            self.updateBusyFiles.emit(self._busy_files)
 
     def _update_job(self, job):
         dirty = self._job.update(job)

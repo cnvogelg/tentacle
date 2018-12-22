@@ -81,9 +81,29 @@ class FileRoot(FileDir):
 class FileGCode(FileBase):
     """A GCode File."""
 
+    def __init__(self, name):
+        """Create a gcode file."""
+        super().__init__(name)
+        self.meta = None
+
     def __repr__(self):
         """Represent gcode file."""
-        return "FileGCode(%s)" % self.name
+        return "FileGCode(%s, meta=%r)" % (self.name, self.meta)
+
+
+class FileMeta:
+    """File Meta Data."""
+
+    def __init__(self, range_x, range_y, range_z):
+        """Create file meta data."""
+        self.range_x = range_x
+        self.range_y = range_y
+        self.range_z = range_z
+
+    def __repr__(self):
+        """Represent file meta data."""
+        return "Meta(X=%r, Y=%r, Z=%r)" % (
+            self.range_x, self.range_y, self.range_z)
 
 
 class FileModel(QObject):
@@ -101,16 +121,34 @@ class FileModel(QObject):
         """Create a new DataModel instance."""
         super().__init__()
         self._selected_file = ""
-        self._files = None
+        self._files = FileRoot(0, 0)
+        self._meta_cache = {}
+        self._client = None
 
     def attach(self, client):
         """Attach data model to octo client."""
         client.file_set.connect(self.on_file_set)
         client.event.connect(self.on_event)
+        self._client = client
+
+    def get_meta(self, path):
+        """Retrieve meta info of file."""
+        if path in self._meta_cache:
+            logging.info("file meta from cache: %s", path)
+            return self._meta_cache[path]
+        # try to get info
+        file_info = self._client.file_info(path)
+        if file_info:
+            logging.info("file meta retrieved: %s: %s", path, file_info)
+            self._files_set_meta(path, file_info)
+            return self._meta_cache[path]
+        else:
+            logging.error("can't get file info: %s", path)
 
     @pyqtSlot(dict)
     def on_file_set(self, data):
         """React on initial files set."""
+        logging.info("got file set")
         free = data['free']
         total = data['total']
         root = FileRoot(free, total)
@@ -147,6 +185,10 @@ class FileModel(QObject):
             elif event_type == 'FolderRemoved':
                 path = payload['path']
                 self._files_del_dir(path)
+            elif event_type == 'MetadataAnalysisFinished':
+                path = payload['path']
+                result = payload['result']
+                self._files_set_meta(path, result)
 
     def _get_dir_and_name(self, path):
         p = path.split('/')
@@ -175,6 +217,27 @@ class FileModel(QObject):
         else:
             logging.error("invalid add file %s", path)
 
+    def _files_set_meta(self, path, meta):
+        dir_node, name = self._get_dir_and_name(path)
+        if dir_node:
+            node = dir_node.get_child_by_name(name)
+            if node:
+                pa = meta['printingArea']
+                sxi = pa['minX']
+                sxa = pa['maxX']
+                syi = pa['minY']
+                sya = pa['maxY']
+                szi = pa['minZ']
+                sza = pa['maxZ']
+                meta = FileMeta((sxi, sxa), (syi, sya), (szi, sza))
+                node.meta = meta
+                self._meta_cache[path] = meta
+                logging.info("set meta data: %s: %s", path, meta)
+            else:
+                logging.error("invaid node: %s", path)
+        else:
+            logging.error("invalid node: %s", path)
+
     def _files_del_gcode_file(self, path):
         dir_node, name = self._get_dir_and_name(path)
         if dir_node:
@@ -182,6 +245,9 @@ class FileModel(QObject):
                 logging.info("del file %s in %r", name, dir_node)
                 self.removedFile.emit(path)
                 self.updateFileSet.emit(self._files)
+                # remove file from cache
+                if path in self._meta_cache:
+                    del self._meta_cache[path]
             else:
                 logging.error("can't remove file %s", path)
         else:
