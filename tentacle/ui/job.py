@@ -12,8 +12,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import pyqtSlot, Qt
 
-from .util import ts_to_hms
-from .model import JobData, ProgressData, TempData
+from tentacle.util import ts_to_hms
+from tentacle.client import JobData, ProgressData, TempData
 
 
 class JobWidget(QWidget):

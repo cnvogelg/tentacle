@@ -7,8 +7,8 @@ from PyQt5.QtCore import pyqtSlot, QPoint
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPainter, QColor, QFontMetrics
 
-from .model import TempData
-from .util import ts_to_hms
+from tentacle.client import TempData
+from tentacle.util import ts_to_hms
 
 
 class TempWidget(QWidget):

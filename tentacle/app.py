@@ -4,12 +4,10 @@ import logging
 from PyQt5.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QLabel
 from PyQt5.QtCore import Qt
 
-from .model import DataModel
-from .move import MoveWidget
-from .files import FilesWidget
-from .job import JobWidget
-from .temp import TempWidget
-from .gcode import GCodeWidget
+from tentacle.client import DataModel
+from tentacle.ui import (
+    MoveWidget, FilesWidget, JobWidget, TempWidget, GCodeWidget
+)
 
 
 class App(QMainWindow):

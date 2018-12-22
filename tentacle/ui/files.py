@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QTreeView, QStyle, QMessageBox
 )
 
-from .model import FileDir, FileGCode
+from tentacle.client import FileDir, FileGCode
 
 
 class FileTreeModel(QAbstractItemModel):

@@ -9,8 +9,8 @@ import logging
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication
 
+from tentacle.client import OctoClient
 from .app import App
-from .octo import OctoClient
 
 
 LOG_format = '%(asctime)s %(levelname)-8s %(message)s'
