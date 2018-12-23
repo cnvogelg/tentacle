@@ -117,6 +117,7 @@ class GCodeWidget(QWidget):
         qp.begin(self)
         size = self.size()
         self._draw(qp, size.width(), size.height())
+        self._draw_z(qp, size.height())
         qp.end()
         d = time.time() - t
         logging.info("gcode paint: %6.3f ms", d * 1000.0)
@@ -176,3 +177,13 @@ class GCodeWidget(QWidget):
         qp.setPen(cursor_col)
         qp.drawLine(cur_pos[0] - 5, cur_pos[1], cur_pos[0] + 5, cur_pos[1])
         qp.drawLine(cur_pos[0], cur_pos[1] - 5, cur_pos[0], cur_pos[1] + 5)
+
+    def _draw_z(self, qp, h):
+        z_size = self._z_range[1] - self._z_range[0]
+        z_pos = self._cur_z - self._z_range[0]
+        y = int(z_pos * (h-2) / z_size)
+        # bar
+        qp.setPen(QColor(64, 64, 64))
+        qp.setBrush(QColor(32, 32, 32))
+        qp.drawRect(0, 0, 10, h)
+        qp.fillRect(1, 1, 8, y, QColor(128, 140, 180))
