@@ -267,6 +267,16 @@ class OctoClient(QObject):
         else:
             logging.info("sim files info: %s", name)
 
+    def feedrate(self, rate):
+        """Set the feedrate."""
+        if self.client:
+            try:
+                return self.client.feedrate(rate)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim feedrate: %r", rate)
+
 
 if __name__ == "__main__":
     from PyQt5.QtCore import QCoreApplication

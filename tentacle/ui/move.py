@@ -110,8 +110,10 @@ class MoveWidget(QWidget):
         slider.setMinimum(50)
         slider.setMaximum(150)
         slider.setValue(100)
+        slider.setPageStep(10)
         slider.setTickPosition(QSlider.TicksBelow)
         slider.setTickInterval(10)
+        slider.setTracking(False)
         return slider
 
     def configure(self, cfg):
@@ -146,8 +148,10 @@ class MoveWidget(QWidget):
         value = self._s_feed_rate.value()
         self._b_reset_rate.setText("%03d%%" % value)
         self._feed_rate = value
+        self._client.feedrate(value)
 
     def _on_feed_reset_button(self):
         self._b_reset_rate.setText("100%")
         self._s_feed_rate.setValue(100)
         self._feed_rate = 100
+        self._client.feedrate(100)
