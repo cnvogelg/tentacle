@@ -1,0 +1,52 @@
+/dts-v1/;
+    /plugin/;
+    / {
+       compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+       fragment@0 {
+          target-path = "/";
+          __overlay__ {
+             keypad: pitft_gpio_keys {
+                compatible = "gpio-keys";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                #autorepeat;
+                button@17 {
+                   label = "Button 17 down";
+                   linux,code = <1>;
+                   gpios = <&gpio 17 1>;
+                };
+		button@22 {
+		   lavel = "Button 22 down";
+		   linux,code = <103>;
+		   gpios = <&gpio 22 1>;
+		};
+                button@23 {
+                   label = "Button 23 down";
+                   linux,code = <28>;
+                   gpios = <&gpio 23 1>;
+                };
+                button@27 {
+                   label = "Button 27 down";
+                   linux,code = <108>;
+                   gpios = <&gpio 27 1>;
+                };
+             };
+          };
+       };
+
+    fragment@1 {
+        target = <&gpio>;
+        __overlay__ {
+            pinctrl-names = "default";
+            pinctrl-0 = <&my_pins>;
+
+            my_pins: my_pins {
+                brcm,pins = <17 22 23 27>;     /* gpio no. */
+                brcm,function = <0 0 0 0>; /* 0:in, 1:out */
+                brcm,pull = <2 2 2 2>;     /* 2:up 1:down 0:none */
+            };
+        };
+    };
+    };
+
