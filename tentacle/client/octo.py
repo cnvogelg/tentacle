@@ -277,6 +277,16 @@ class OctoClient(QObject):
         else:
             logging.info("sim feedrate: %r", rate)
 
+    def send_gcode(self, commands):
+        """Send GCode Commands."""
+        if self.client:
+            try:
+                return self.client.gcode(commands)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim commands: %r", commands)
+
 
 if __name__ == "__main__":
     from PyQt5.QtCore import QCoreApplication

@@ -47,11 +47,15 @@ class MoveWidget(QWidget):
         self._b_home_z = QPushButton("Hz")
         self._b_home_z.clicked.connect(
             lambda: self.on_home(False, False, True))
-        # extra
+        # extra buttons
         self._b_home = QPushButton("Home")
         self._b_home.clicked.connect(lambda: self.on_home(True, True, True))
         self._b_unload = QPushButton("Unload")
         self._b_unload.clicked.connect(self.on_unload)
+        self._b_button_a = QPushButton("Button A")
+        self._b_button_a.clicked.connect(self._on_move_a)
+        self._b_button_b = QPushButton("Button B")
+        self._b_button_b.clicked.connect(self._on_move_b)
         # scale
         self._r_scale_01mm = QRadioButton("0.1")
         self._r_scale_01mm.setChecked(True)
@@ -75,9 +79,6 @@ class MoveWidget(QWidget):
         grid.addWidget(self._b_zn, 0, 3)
         grid.addWidget(self._b_zp, 2, 3)
         grid.addWidget(self._b_home_z, 1, 3)
-        # extra
-        grid.addWidget(self._b_home, 3, 0, 1, 2)
-        grid.addWidget(self._b_unload, 3, 2, 1, 2)
         # scale
         lay = QHBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
@@ -98,12 +99,22 @@ class MoveWidget(QWidget):
         self._b_reset_rate = QPushButton(" 100% ")
         self._b_reset_rate.clicked.connect(self._on_feed_reset_button)
         lay.addWidget(self._b_reset_rate)
+        # extra
+        lay = QHBoxLayout()
+        layout.addLayout(lay)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self._b_home)
+        lay.addWidget(self._b_unload)
+        lay.addWidget(self._b_button_a)
+        lay.addWidget(self._b_button_b)
         # fill ui
         layout.addStretch(1)
         # params
         self._scale = 0.1
         self._unload_z = 100
         self._feed_rate = 100
+        self._pos_a = [0, 0, 0]
+        self._pos_b = [0, 0, 0]
 
     def _setup_feed_rate_slider(self):
         slider = QSlider(Qt.Horizontal)
@@ -120,6 +131,14 @@ class MoveWidget(QWidget):
         """Configure widget from config."""
         if "unload_z" in cfg:
             self._unload_z = float(cfg["unload_z"])
+        if "label_a" in cfg:
+            self._b_button_a.setText(cfg["label_a"])
+        if "label_b" in cfg:
+            self._b_button_b.setText(cfg["label_b"])
+        if "pos_a" in cfg:
+            self._pos_a = tuple(map(float, cfg["pos_a"].split(",")))
+        if "pos_b" in cfg:
+            self._pos_b = tuple(map(float, cfg["pos_b"].split(",")))
 
     def on_scale(self, new_scale):
         """React on scale radio buttons."""
@@ -155,3 +174,11 @@ class MoveWidget(QWidget):
         self._s_feed_rate.setValue(100)
         self._feed_rate = 100
         self._client.feedrate(100)
+
+    def _on_move_a(self):
+        logging.info("move_a: %s", self._pos_a)
+        self._client.jog(*self._pos_a)
+
+    def _on_move_b(self):
+        logging.info("move_b: %s", self._pos_b)
+        self._client.jog(*self._pos_b)
