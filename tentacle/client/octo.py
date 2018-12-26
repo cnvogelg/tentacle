@@ -72,19 +72,19 @@ class OctoEventEmitter(QThread):
         """Run main loop of helper thread."""
         logging.debug("start event emitter")
         while self.stay:
-            # setup client
-            logging.debug("create gen, client")
-            gen = self.gen_factory()
-            client = self.client_factory()
-            self.client.setClient.emit(client)
-            # initially read files
-            if client:
-                logging.debug("get files()")
-                files = client.files()
-                self.client.file_set.emit(files)
-            # setup event reader
-            logging.debug("enter gen.read_loop()")
             try:
+                # setup client
+                logging.debug("create gen, client")
+                gen = self.gen_factory()
+                client = self.client_factory()
+                self.client.setClient.emit(client)
+                # initially read files
+                if client:
+                    logging.debug("get files()")
+                    files = client.files()
+                    self.client.file_set.emit(files)
+                # setup event reader
+                logging.debug("enter gen.read_loop()")
                 read_loop = gen.read_loop()
                 for msg in read_loop:
                     logging.debug("msg: %r", msg)
