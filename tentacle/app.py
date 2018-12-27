@@ -10,7 +10,8 @@ from PyQt5.QtCore import Qt, QPoint
 
 from tentacle.client import DataModel, FileModel
 from tentacle.ui import (
-    MoveWidget, FilesWidget, JobWidget, TempWidget, GCodeWidget
+    MoveWidget, FilesWidget, JobWidget, TempWidget, GCodeWidget,
+    CameraWidget
 )
 
 
@@ -22,7 +23,8 @@ class App(QMainWindow):
         ("Job", JobWidget),
         ("Temp", TempWidget),
         ("Move", MoveWidget),
-        ("GCode", GCodeWidget)
+        ("GCode", GCodeWidget),
+        ("Cam", CameraWidget)
     )
 
     def __init__(self, octo_client, cfg):
