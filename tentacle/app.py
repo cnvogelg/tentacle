@@ -31,6 +31,9 @@ class App(QMainWindow):
         self.cfg = cfg
         self._reboot_cmd = None
         self._restart_cmd = None
+        self._backlight_on_cmd = None
+        self._backlight_off_cmd = None
+        self._backlight = False
         self._configure(cfg)
 
         self.setWindowTitle("tentacle")
@@ -41,6 +44,7 @@ class App(QMainWindow):
         self.table_widget = QTabWidget(self)
         self._setup_tabs()
         self.setCentralWidget(self.table_widget)
+        self._backlight_on()
 
     def _configure(self, cfg):
         if 'menu' in cfg:
@@ -49,11 +53,23 @@ class App(QMainWindow):
                 self._restart_cmd = menu['restart']
             if 'reboot' in menu:
                 self._reboot_cmd = menu['reboot']
+        if 'backlight' in cfg:
+            bl = cfg['backlight']
+            if 'on' in bl:
+                self._backlight_on_cmd = bl['on']
+            if 'off' in bl:
+                self._backlight_off_cmd = bl['off']
 
     def keyPressEvent(self, event):
         """Handle key presses."""
-        if event.key() == Qt.Key_Escape:
+        key = event.key()
+        if key == Qt.Key_Escape:
+            self._backlight_on()
             self._handle_menu()
+        elif key == Qt.Key_Up:
+            self._backlight_on()
+        elif key == Qt.Key_Down:
+            self._backlight_off()
 
     def _handle_menu(self):
         menu = QMenu(self)
@@ -82,6 +98,27 @@ class App(QMainWindow):
                 logging.info("run_cmd: %r", args)
             else:
                 logging.error("run_cmd: %r -> %d", args, ret)
+            return ret
+        else:
+            return 0
+
+    def _backlight_on(self):
+        if not self._backlight:
+            ret = self._run_cmd(self._backlight_on_cmd)
+            logging.info("backlight on: ret=%d", ret)
+            if ret == 0:
+                self._backlight = True
+        else:
+            logging.info("backlight already on!")
+
+    def _backlight_off(self):
+        if self._backlight:
+            ret = self._run_cmd(self._backlight_off_cmd)
+            logging.info("backlight off: ret=%d", ret)
+            if ret == 0:
+                self._backlight = False
+        else:
+            logging.info("backlight already off!")
 
     def closeEvent(self, event):
         """Handle close event of Window."""
