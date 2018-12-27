@@ -1,8 +1,12 @@
 """Main App Window."""
 
+import subprocess
 import logging
-from PyQt5.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QLabel
-from PyQt5.QtCore import Qt
+
+from PyQt5.QtWidgets import (
+    QMainWindow, QTabWidget, QStatusBar, QLabel, QMenu
+)
+from PyQt5.QtCore import Qt, QPoint
 
 from tentacle.client import DataModel, FileModel
 from tentacle.ui import (
@@ -25,6 +29,10 @@ class App(QMainWindow):
         """Create main window."""
         super().__init__()
         self.cfg = cfg
+        self._reboot_cmd = None
+        self._restart_cmd = None
+        self._configure(cfg)
+
         self.setWindowTitle("tentacle")
 
         self._setup_status()
@@ -34,11 +42,46 @@ class App(QMainWindow):
         self._setup_tabs()
         self.setCentralWidget(self.table_widget)
 
+    def _configure(self, cfg):
+        if 'menu' in cfg:
+            menu = cfg['menu']
+            if 'restart' in menu:
+                self._restart_cmd = menu['restart']
+            if 'reboot' in menu:
+                self._reboot_cmd = menu['reboot']
+
     def keyPressEvent(self, event):
         """Handle key presses."""
         if event.key() == Qt.Key_Escape:
-            logging.error("<Esc> pressed... quitting")
+            self._handle_menu()
+
+    def _handle_menu(self):
+        menu = QMenu(self)
+        restart_act = menu.addAction("Restart OctoPrint")
+        reboot_act = menu.addAction("Reboot System")
+        quit_act = menu.addAction("Quit Tentacle")
+        menu.setActiveAction(quit_act)
+        x = (self.width() - menu.width()) // 2
+        y = (self.height() - menu.height()) // 2
+        action = menu.exec_(QPoint(x, y))
+        if action == quit_act:
+            logging.error("quitting...")
             self.close()
+        elif action == restart_act:
+            logging.info("restarting...")
+            self._run_cmd(self._restart_cmd)
+        elif action == reboot_act:
+            logging.info("rebooting...")
+            self._run_cmd(self._reboot_cmd)
+
+    def _run_cmd(self, cmd):
+        if cmd:
+            args = cmd.split()
+            ret = subprocess.call(args)
+            if ret == 0:
+                logging.info("run_cmd: %r", args)
+            else:
+                logging.error("run_cmd: %r -> %d", args, ret)
 
     def closeEvent(self, event):
         """Handle close event of Window."""
