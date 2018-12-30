@@ -68,22 +68,94 @@ Note: It will ask for your user password to install the file.
 
 ## Touchscreen
 
-I have the resistive touchscreen and the associated driver is called `stmpe`.
-An associated udev rule is found here:
+### Calibration Tool
+
+An X11 based calibration tool is needed to calculate the calibration matrix:
+
+```
+sudo apt-get install libxaw7-dev libxxf86vm-dev libxaw7-dev libxft-dev
+git clone https://github.com/KurtJacobson/xtcal
+cd xtcal
+make
+```
+
+### Setup Minimal X11
+
+If you are running a X11-less (lite) distri then add minimal server with:
+
+```
+sudo apt-get install xserver-xorg xserver-xorg-video-fbdev xinit
+```
+
+Allow anybody to startx:
+
+```
+sudo vi /etc/X11/Xwrapper.config
+
+allowed_users=anybody
+```
+
+Select Framebuffer:
+
+```
+sudo vi /usr/share/X11/xorg.conf.d/99-fbdev.conf
+
+Section "Device"  
+  Identifier "myfb"
+  Driver "fbdev"
+  Option "fbdev" "/dev/fb1"
+EndSection
+```
+
+### Perform Calibration
+
+Run X11 Server for framebuffer once:
+
+```
+$ startx &
+```
+
+Reset Calibration Matrix:
+
+```
+$ DISPLAY=:0.0 xinput set-prop "stmpe-ts" 'Coordinate Transformation Matrix' 1 0 0 0 1 0 0 0 1
+```
+
+Run the calibration tool:
+
+```
+$ DISPLAY=:0.0 ./xtcal -geometry 320x240
+```
+
+Pick the drawn crosshairs and after that you get the matrix reported:
+
+```
+xinput set-prop <device name> 'Coordinate Transformation Matrix' 0.015731 -1.135927 1.014818 1.123037 0.017117 -0.062198 0 0 1
+```
+
+This calibration matrix is what we need...
+
+Stop X11 again:
+
+```
+pkill startx
+```
+
+# Store Calibration Matrix
+
+The PiTFT Installer has created a rules file. There we need to add the matrix:
+
+Note: Only the first 6 values are needed.
 
 ```
 /etc/udev/rules.d/95-stmpe.rules:
-SUBSYSTEM=="input", ATTRS{name}=="*stmpe*", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 -1 1  1 0 0"
+SUBSYSTEM=="input", ATTRS{name}=="*stmpe*", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen", ENV{LIBINPUT_CALIBRATION_MATRIX}="1.143981 -0.006342 -0.106502 0.000513 1.102468 -0.044724"
 ```
 
-Note the input calibration matrix I have added. This matrix applies the
-transformation to map the input coordinates to the same 90 degree landscape
-orientation that was setup with the display driver above.
-
-Either reboot your Pi to make this change active or re-load udev rules:
+Reboot your Pi to make this change active:
 
 ```
-$ sudo udevadm control --reload-rules
+$ sudo libinput-list-devices
 ```
 
 [1]: https://octoprint.org/download/
