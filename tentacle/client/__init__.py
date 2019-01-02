@@ -9,3 +9,4 @@ from .files import (  # noqa: F401
     FileModel
 )
 from .octo import OctoClient  # noqa: F401
+from .cam import CamClient  # noqa: F401

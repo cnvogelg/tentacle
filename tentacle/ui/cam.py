@@ -2,11 +2,12 @@
 
 import time
 import logging
-import requests
 
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPainter, QImage
-from PyQt5.QtCore import QTimer, QRect, QPoint
+from PyQt5.QtCore import QRect, QPoint
+
+from tentacle.client import CamClient
 
 
 class CameraWidget(QWidget):
@@ -19,50 +20,40 @@ class CameraWidget(QWidget):
         self._model = model
         self._client = client
         self._url = None
-        self._interval = 1000
+        self._cam = None
         self._qimg = None
-        # setup timer
-        self._timer = QTimer()
-        self._timer.timeout.connect(self._on_timer)
 
     def configure(self, cfg):
         """Configure widget from config file."""
         if 'url' in cfg:
             self._url = cfg['url']
-        if 'interval' in cfg:
-            self._interval = int(cfg['interval'])
 
     def showEvent(self, _):
         """Start cam recording."""
         logging.info("cam: start")
-        self._timer.start(self._interval)
+        self._last_get = time.time()
+        self._cam = CamClient(self._url)
+        self._cam.jpegData.connect(self._on_data)
+        self._cam.start()
 
     def hideEvent(self, _):
         """Stop cam recording."""
         logging.info("cam: stop")
-        self._timer.stop()
+        self._cam.stop()
+        self._cam = None
 
-    def _on_timer(self):
+    def _on_data(self, jpeg_data):
         t = time.time()
-        jpeg_data = self._get_jpeg()
+        delta = t - self._last_get
+        self._last_get = t
         if jpeg_data:
             qimg = QImage()
             qimg.loadFromData(jpeg_data, "JPG")
             self._qimg = qimg
         d = time.time() - t
-        logging.info("cam get: %6.3f ms", d * 1000.0)
+        logging.info("cam get: %6.3f ms (last frame: %6.3f ms)",
+                     d * 1000.0, delta * 1000.0)
         self.repaint()
-
-    def _get_jpeg(self):
-        if not self._url:
-            return
-        r = requests.get(self._url)
-        if r.status_code != 200:
-            logging.error("cam: get: %s -> %d", self._url, r.status_code)
-            return
-        data = r.content
-        logging.info("cam: get: %s -> %d", self._url, len(data))
-        return data
 
     def paintEvent(self, _):
         """Redraw graph."""
