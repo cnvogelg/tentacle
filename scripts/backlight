@@ -1,0 +1,16 @@
+#!/bin/sh
+BL_FILE="/sys/class/backlight/soc:backlight/brightness"
+if [ ! -e "$BL_FILE" ]; then
+    echo "no backlight found!"
+    exit 0
+fi
+if [ $(id -u) -ne 0 ]; then
+    sudo "$0" "$@"
+    exit $?
+fi
+if [ "$1" = "" ]; then
+    cat "$BL_FILE"
+else
+    echo "$1" >"$BL_FILE"
+fi
+exit $?
