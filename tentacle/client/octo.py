@@ -77,7 +77,14 @@ class OctoEventEmitter(QThread):
                 logging.debug("create gen, client")
                 gen = self.gen_factory()
                 client = self.client_factory()
-                self.client.setClient.emit(client)
+                self.client.set_client(client)
+                # check state
+                if client:
+                    state = self.client.state()
+                    logging.info("initial state: %s", state)
+                    if state in ('Offline', 'Closed'):
+                        logging.info("auto connect")
+                        self.client.connect()
                 # initially read files
                 if client:
                     logging.debug("get files()")
@@ -98,12 +105,12 @@ class OctoEventEmitter(QThread):
                             logging.debug("done")
                 # end of sim. never reached on 'real' OctoPrint link
                 self.client.error.emit("EOF reached")
-                self.client.setClient.emit(None)
+                self.client.set_client(None)
                 break
             except IOError as e:
                 logging.error("emitter exeception: %s", e)
                 self.client.error.emit(str(e))
-                self.client.setClient.emit(None)
+                self.client.set_client(None)
                 # retry
                 time.sleep(self.retry_delay)
                 logging.info("retry event emitter")
@@ -112,10 +119,6 @@ class OctoEventEmitter(QThread):
 
 class OctoClient(QObject):
     """The OctoClient Qt wrapper for the OctoPrint Rest API."""
-
-    # internal signals
-    stopEmitter = pyqtSignal()
-    setClient = pyqtSignal(object)
 
     # octo events
     error = pyqtSignal(str)
@@ -147,17 +150,16 @@ class OctoClient(QObject):
         """Start worker thread."""
         self._thread = OctoEventEmitter(
             self, self.gen_factory, self.client_factory)
-        self.stopEmitter.connect(self._thread.stop)
-        self.setClient.connect(self._set_client)
         self._thread.start()
 
     def stop(self):
         """Cooperatively stop worker thread."""
-        self.stopEmitter.emit()
+        self._thread.stop()
         self._thread.wait()
         self._thread = None
 
-    def _set_client(self, client):
+    def set_client(self, client):
+        """Report the valid client instance of the worker thread."""
         self.client = client
 
     def files_info(self, location, file_name):
@@ -173,6 +175,27 @@ class OctoClient(QObject):
         else:
             logging.info("sim get files info")
             return {}
+
+    def connect(self):
+        """Connect to printer."""
+        if self.client:
+            try:
+                self.client.connect()
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim connect")
+
+    def state(self):
+        """Return printer state."""
+        if self.client:
+            try:
+                return self.client.state()
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim state")
+            return "Operational"
 
     def job_cancel(self):
         """Cancel current job."""
