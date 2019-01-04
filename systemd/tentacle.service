@@ -1,0 +1,15 @@
+[Unit]
+Description=Tentacle OctoPrint Client
+After=octoprint.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/tentacle
+ExecStart=/usr/bin/python3 -m tentacle
+TTYPath=tty1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
