@@ -1,36 +1,11 @@
 """Camera Client for MJPEG streaming from mjpeg-streamer server."""
 
-import io
 import logging
 import time
+import http.client
+import urllib.parse
 
-import requests
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
-
-
-class IterStream(io.RawIOBase):
-    """Convert a stream of byte blobs to an bytes io."""
-
-    def __init__(self, iterable):
-        """Create stream."""
-        super().__init__()
-        self.leftover = None
-        self.iterable = iterable
-
-    def readable(self):
-        """Stream is readable."""
-        return True
-
-    def readinto(self, b):
-        """Fill a buffer."""
-        try:
-            length = len(b)
-            chunk = self.leftover or next(self.iterable)
-            output, self.leftover = chunk[:length], chunk[length:]
-            b[:len(output)] = output
-            return len(output)
-        except StopIteration:
-            return 0
 
 
 class CamWorker(QThread):
@@ -48,57 +23,52 @@ class CamWorker(QThread):
 
     def run(self):
         """Enter main run loop of thread."""
-        url = self._client.get_url()
+        org_url = self._client.get_url()
+        url = urllib.parse.urlparse(org_url)
         retry_delay = self._client.get_retry_delay()
+        # combine req URL
+        req = url.path
+        if url.query:
+            req += "?" + url.query
         while self._stay:
-            logging.info("cam: request for '%s'", url)
-            r = None
+            logging.info("cam: request for %s @ %s", req, url.netloc)
+            con = None
             try:
-                r = requests.get(url, stream=True)
-                if r.status_code != 200:
-                    logging.error("cam: invalid status: %d", r.status)
+                con = http.client.HTTPConnection(url.netloc)
+                con.request('GET', req)
+                resp = con.getresponse()
+                if resp.status != 200:
+                    logging.error("cam: invalid status: %d", resp.status)
+                    self._client.raisedError.emit(resp.reason)
                 else:
-                    ct = r.headers['Content-Type']
-                    prefix = "multipart/x-mixed-replace;boundary="
-                    if not ct.startswith(prefix):
-                        logging.error("cam: wrong content type: %s", ct)
-                    else:
-                        boundary = "--" + ct[len(prefix):]
-                        # data loop
-                        istr = IterStream(r.iter_content())
-                        reader = io.BufferedReader(istr, buffer_size=1024)
-                        self._data_loop(reader, boundary)
-                        logging.debug("cam: end request")
-                        return
+                    # data loop
+                    self._data_loop(resp)
+                    logging.debug("cam: end request")
+                    return
             except IOError as e:
                 logging.error("cam: error: %s", str(e))
                 self._client.raisedError.emit(e)
             finally:
-                if r:
-                    r.close()
+                if con:
+                    con.close()
             # retry
             logging.debug("cam: retry delay: %s", retry_delay)
             time.sleep(retry_delay)
 
-    def _data_loop(self, reader, boundary):
+    def _data_loop(self, reader):
         while self._stay:
-            size = self._parse_header(reader, boundary)
+            # read header
+            size = self._parse_header(reader)
+            # data
             jpeg_data = reader.read(size)
+            # read line after data
+            reader.readline()
             self._client.jpegData.emit(jpeg_data)
 
-    def _parse_header(self, reader, boundary):
+    def _parse_header(self, reader):
         # parse header
         def get():
             return reader.readline().strip().decode("utf-8")
-        # expect boundary first
-        while True:
-            line = get()
-            if line == "":
-                pass
-            elif line == boundary:
-                break
-            else:
-                raise IOError("multi: boundary not found! got: %s" % line)
         # now the header entries. size needs to be found.
         size = None
         while True:
