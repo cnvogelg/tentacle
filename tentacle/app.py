@@ -46,7 +46,9 @@ class App(QMainWindow):
         self.table_widget = QTabWidget(self)
         self._setup_tabs()
         self.setCentralWidget(self.table_widget)
+
         self._backlight_on()
+        self._screen_no = 0
 
     def _configure(self, cfg):
         if 'menu' in cfg:
@@ -72,6 +74,8 @@ class App(QMainWindow):
             self._backlight_on()
         elif key == Qt.Key_Down:
             self._backlight_off()
+        elif key == Qt.Key_Space:
+            self._screenshot()
 
     def _handle_menu(self):
         menu = QMenu(self)
@@ -167,3 +171,10 @@ class App(QMainWindow):
             self._l_status.setText("Wait Temp")
         else:
             self._l_status.setText("Printing")
+
+    def _screenshot(self):
+        pixmap = self.grab()
+        file_name = "tentacle-grab-%03d.png" % self._screen_no
+        pixmap.save(file_name)
+        logging.info("saved screenshot '%s'", file_name)
+        self._screen_no += 1
