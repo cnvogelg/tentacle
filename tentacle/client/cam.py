@@ -56,6 +56,7 @@ class CamWorker(QThread):
             time.sleep(retry_delay)
 
     def _data_loop(self, reader):
+        self._reset_frame_time()
         while self._stay:
             # read header
             size = self._parse_header(reader)
@@ -64,6 +65,7 @@ class CamWorker(QThread):
             # read line after data
             reader.readline()
             self._client.jpegData.emit(jpeg_data)
+            self._update_frame_time()
 
     def _parse_header(self, reader):
         # parse header
@@ -84,12 +86,29 @@ class CamWorker(QThread):
         else:
             return size
 
+    def _reset_frame_time(self):
+        self._sum_frame_time = 0.0
+        self._num_frame_time = 0
+        self._last_get = time.time()
+
+    def _update_frame_time(self):
+        t = time.time()
+        frame_time = t - self._last_get
+        self._last_get = t
+        self._sum_frame_time += frame_time
+        self._num_frame_time += 1
+        if self._num_frame_time > 10:
+            fps = self._num_frame_time / self._sum_frame_time
+            self._client.updateFPS.emit(fps)
+            self._reset_frame_time()
+
 
 class CamClient(QObject):
     """Capture a stream of jpeg images from a camera using mjpeg-streamer."""
 
     jpegData = pyqtSignal(object)
     raisedError = pyqtSignal(object)
+    updateFPS = pyqtSignal(float)
 
     def __init__(self, url, retry_delay=5.0):
         """Access camera with given streaming URL."""
@@ -141,7 +160,11 @@ if __name__ == "__main__":
         print("DATA:", len(jpeg))
         _check_end()
 
+    def _fps(fps):
+        print("FPS: %8.3f" % fps)
+
     cc.jpegData.connect(_data)
     cc.raisedError.connect(_error)
+    cc.updateFPS.connect(_fps)
     cc.start()
     sys.exit(app.exec_())
