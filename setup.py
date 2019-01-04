@@ -10,7 +10,6 @@ setup(name='tentacle',
       packages=['tentacle'],
       zip_safe=True,
       install_requires=[
-          'PyQt5',
           'qdarkstyle',
           'octorest'
       ],
