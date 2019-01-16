@@ -7,7 +7,7 @@ import configparser
 import logging
 
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QStyleFactory
 
 from tentacle.client import OctoClient
 from .app import App
@@ -83,6 +83,20 @@ def setup_app(app, win, cfg, fb_mode):
         win.setFixedSize(width, height)
     else:
         win.setGeometry(0, 0, width, height)
+    # set style
+    if 'style' in cfg:
+        new_style_name = cfg['style']
+        old_style = QApplication.style()
+        old_style_name = old_style.objectName()
+        logging.debug("old style: %s", old_style_name)
+        if old_style_name != new_style_name:
+            new_style = QStyleFactory.create(new_style_name)
+            if new_style:
+                QApplication.setStyle(new_style)
+            else:
+                logging.error("invalid style: %s. available: %s",
+                              new_style_name,
+                              QStyleFactory.keys())
     # dark mode?
     if 'dark' in cfg:
         dark = cfg['dark'].lower() in ('true', 'on')
