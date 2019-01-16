@@ -1,5 +1,6 @@
 """Trigger external commands."""
 
+import os
 import subprocess
 import logging
 
@@ -36,7 +37,15 @@ class Commands:
     def _run_cmd(self, cmd):
         if cmd:
             args = cmd.split()
-            ret = subprocess.call(args)
+            sys_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            for i, arg in enumerate(args):
+                if arg.startswith("./"):
+                    args[i] = sys_dir + arg[1:]
+            try:
+                ret = subprocess.call(args)
+            except IOError as exc:
+                logging.error("run_cmd: %r -> %s", args, exc)
+                return 1
             if ret == 0:
                 logging.info("run_cmd: %r", args)
             else:
