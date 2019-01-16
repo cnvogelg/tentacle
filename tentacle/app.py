@@ -1,10 +1,9 @@
 """Main App Window."""
 
-import subprocess
 import logging
 
 from PyQt5.QtWidgets import (
-    QMainWindow, QTabWidget, QStatusBar, QLabel, QMenu
+    QMainWindow, QTabWidget, QStatusBar, QLabel, QMenu, QPushButton
 )
 from PyQt5.QtCore import Qt, QPoint
 
@@ -13,6 +12,7 @@ from tentacle.ui import (
     MoveWidget, FilesWidget, JobWidget, TempWidget, GCodeWidget,
     CameraWidget
 )
+from .cmds import Commands
 
 
 class App(QMainWindow):
@@ -31,12 +31,7 @@ class App(QMainWindow):
         """Create main window."""
         super().__init__()
         self.cfg = cfg
-        self._reboot_cmd = None
-        self._restart_cmd = None
-        self._backlight_on_cmd = None
-        self._backlight_off_cmd = None
-        self._backlight = False
-        self._configure(cfg)
+        self._cmds = Commands(cfg)
 
         self.setWindowTitle("tentacle")
 
@@ -47,40 +42,31 @@ class App(QMainWindow):
         self._setup_tabs()
         self.setCentralWidget(self.table_widget)
 
-        self._backlight_on()
         self._screen_no = 0
-
-    def _configure(self, cfg):
-        if 'menu' in cfg:
-            menu = cfg['menu']
-            if 'restart' in menu:
-                self._restart_cmd = menu['restart']
-            if 'reboot' in menu:
-                self._reboot_cmd = menu['reboot']
-        if 'backlight' in cfg:
-            bl = cfg['backlight']
-            if 'on' in bl:
-                self._backlight_on_cmd = bl['on']
-            if 'off' in bl:
-                self._backlight_off_cmd = bl['off']
 
     def keyPressEvent(self, event):
         """Handle key presses."""
         key = event.key()
         if key == Qt.Key_Escape:
-            self._backlight_on()
             self._handle_menu()
         elif key == Qt.Key_Up:
-            self._backlight_on()
+            self._cmds.backlight_on()
         elif key == Qt.Key_Down:
-            self._backlight_off()
+            self._cmds.backlight_off()
         elif key == Qt.Key_Space:
             self._screenshot()
 
     def _handle_menu(self):
+        # ensure that we see something
+        self._cmds.backlight_on()
+        # build menu
         menu = QMenu(self)
+        toggle_act = menu.addAction("Toggle Backlight")
         restart_act = menu.addAction("Restart OctoPrint")
+        menu.addSeparator()
         reboot_act = menu.addAction("Reboot System")
+        poweroff_act = menu.addAction("Power off System")
+        menu.addSeparator()
         quit_act = menu.addAction("Quit Tentacle")
         menu.setActiveAction(quit_act)
         x = (self.width() - menu.width()) // 2
@@ -89,42 +75,14 @@ class App(QMainWindow):
         if action == quit_act:
             logging.error("quitting...")
             self.close()
+        elif action == toggle_act:
+            self._cmds.backlight_toggle()
         elif action == restart_act:
-            logging.info("restarting...")
-            self._run_cmd(self._restart_cmd)
+            self._cmds.restart_octoprint()
         elif action == reboot_act:
-            logging.info("rebooting...")
-            self._run_cmd(self._reboot_cmd)
-
-    def _run_cmd(self, cmd):
-        if cmd:
-            args = cmd.split()
-            ret = subprocess.call(args)
-            if ret == 0:
-                logging.info("run_cmd: %r", args)
-            else:
-                logging.error("run_cmd: %r -> %d", args, ret)
-            return ret
-        else:
-            return 0
-
-    def _backlight_on(self):
-        if not self._backlight:
-            ret = self._run_cmd(self._backlight_on_cmd)
-            logging.info("backlight on: ret=%d", ret)
-            if ret == 0:
-                self._backlight = True
-        else:
-            logging.info("backlight already on!")
-
-    def _backlight_off(self):
-        if self._backlight:
-            ret = self._run_cmd(self._backlight_off_cmd)
-            logging.info("backlight off: ret=%d", ret)
-            if ret == 0:
-                self._backlight = False
-        else:
-            logging.info("backlight already off!")
+            self._cmds.reboot_system()
+        elif action == poweroff_act:
+            self._cmds.poweroff_system()
 
     def closeEvent(self, event):
         """Handle close event of Window."""
@@ -162,7 +120,10 @@ class App(QMainWindow):
     def _setup_status(self):
         self._status_bar = QStatusBar()
         self._l_status = QLabel("Mode")
+        self._b_menu = QPushButton("\u9776")
+        self._b_menu.clicked.connect(self._handle_menu)
         self._status_bar.addPermanentWidget(self._l_status)
+        self._status_bar.addPermanentWidget(self._b_menu)
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("Welcome to tentacle!", 2000)
 
