@@ -186,6 +186,16 @@ class OctoClient(QObject):
         else:
             logging.info("sim connect")
 
+    def disconnect(self):
+        """Disconnect from printer."""
+        if self.client:
+            try:
+                self.client.disconnect()
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim disconnect")
+
     def state(self):
         """Return printer state."""
         if self.client:
