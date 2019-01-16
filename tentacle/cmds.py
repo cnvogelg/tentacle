@@ -37,7 +37,8 @@ class Commands:
     def _run_cmd(self, cmd):
         if cmd:
             args = cmd.split()
-            sys_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            rel_dir = os.path.join(os.path.dirname(__file__), "..")
+            sys_dir = os.path.abspath(rel_dir)
             for i, arg in enumerate(args):
                 if arg.startswith("./"):
                     args[i] = sys_dir + arg[1:]
