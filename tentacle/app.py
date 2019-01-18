@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt, QPoint
 from tentacle.client import DataModel, FileModel
 from tentacle.ui import (
     MoveWidget, FilesWidget, JobWidget, TempWidget, GCodeWidget,
-    CameraWidget, SerialWidget
+    CameraWidget, SerialWidget, ToolWidget
 )
 from .cmds import Commands
 
@@ -22,6 +22,7 @@ class App(QMainWindow):
         ("File", FilesWidget),
         ("Job", JobWidget),
         ("Temp", TempWidget),
+        ("Tool", ToolWidget),
         ("Move", MoveWidget),
         ("GCode", GCodeWidget),
         ("Cam", CameraWidget),
@@ -121,7 +122,7 @@ class App(QMainWindow):
     def _setup_status(self):
         self._status_bar = QStatusBar()
         self._l_status = QLabel("Mode")
-        self._b_menu = QPushButton("\u9776")
+        self._b_menu = QPushButton("\u2630")
         self._b_menu.clicked.connect(self._handle_menu)
         self._status_bar.addPermanentWidget(self._l_status)
         self._status_bar.addPermanentWidget(self._b_menu)

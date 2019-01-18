@@ -7,3 +7,4 @@ from .move import MoveWidget  # noqa: F401
 from .temp import TempWidget  # noqa: F401
 from .cam import CameraWidget  # noqa: F401
 from .serial import SerialWidget  # noqa: F401
+from .tool import ToolWidget  # noqa: F401

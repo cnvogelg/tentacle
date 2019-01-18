@@ -145,6 +145,7 @@ class OctoClient(QObject):
             else:
                 self.client_factory = lambda: None
         self._thread = None
+        self.client = None
 
     def start(self):
         """Start worker thread."""
@@ -319,6 +320,26 @@ class OctoClient(QObject):
                 self.error.emit(str(e))
         else:
             logging.info("sim commands: %r", commands)
+
+    def tool_target(self, tool_no, temp):
+        """Set target temperature of tool."""
+        if self.client:
+            try:
+                self.client.tool_target({'tool%d' % tool_no: temp})
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim tool_target: %d: %r", tool_no, temp)
+
+    def bed_target(self, temp):
+        """Set target temperature of bed."""
+        if self.client:
+            try:
+                self.client.bed_target(temp)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim bed_target: %r", temp)
 
 
 if __name__ == "__main__":
