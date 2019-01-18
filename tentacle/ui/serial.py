@@ -17,7 +17,8 @@ class SerialWidget(QWidget):
         # receive temps
         self._model = model
         self._client = client
-        self._model.addSerialLog.connect(self._on_add_serial_log)
+        self._model.sendRaw.connect(self._on_send_raw)
+        self._model.recvRaw.connect(self._on_recv_raw)
         self._model.updateState.connect(self._on_update_state)
         # ui
         layout = QVBoxLayout()
@@ -26,7 +27,6 @@ class SerialWidget(QWidget):
         self.setLayout(layout)
         self._w_log = QPlainTextEdit()
         self._w_log.setReadOnly(True)
-        self._w_log.setFont(QFont("Courier", 8))
         self._w_log.setMaximumBlockCount(1000)
         layout.addWidget(self._w_log, 100)
         # buttons
@@ -41,9 +41,19 @@ class SerialWidget(QWidget):
         self._b_disconnect.clicked.connect(self._on_disconnect)
         self._b_disconnect.setEnabled(False)
         hlayout.addWidget(self._b_disconnect)
+        # state
+        self._last_ts = None
 
     def configure(self, cfg):
         """Configure widget from config file."""
+        fnt = QFont("Courier", 8)
+        if 'font_size' in cfg:
+            size = int(cfg['font_size'])
+            fnt.setPixelSize(size)
+        if 'font_family' in cfg:
+            family = cfg['font_family']
+            fnt.setFamily(family)
+        self._w_log.setFont(fnt)
 
     def _on_update_state(self, state):
         if state == "Offline":
@@ -58,12 +68,24 @@ class SerialWidget(QWidget):
         self._b_connect.setEnabled(connect)
         self._b_disconnect.setEnabled(disconnect)
 
-    def _on_add_serial_log(self, line):
-        t = time.time()
-        tstr = time.strftime("%H:%M:%S", time.localtime(t))
-        ms = int(t * 1000) % 1000
-        txt = "%s.%03d: %s" % (tstr, ms, line)
-        self._w_log.appendPlainText(txt)
+    def _calc_delta(self):
+        now = time.time()
+        if self._last_ts:
+            delta = (now - self._last_ts) * 1000.0
+        else:
+            delta = 0
+        self._last_ts = now
+        return delta
+
+    def _on_send_raw(self, line):
+        delta = self._calc_delta()
+        txt = '<font color="#0F0">TX %04d: %s</font>' % (delta, line)
+        self._w_log.appendHtml(txt)
+
+    def _on_recv_raw(self, line):
+        delta = self._calc_delta()
+        txt = "RX %04d: %s" % (delta, line)
+        self._w_log.appendHtml(txt)
 
     def _on_connect(self):
         self._client.connect()

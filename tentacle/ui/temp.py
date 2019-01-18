@@ -5,7 +5,7 @@ import time
 
 from PyQt5.QtCore import pyqtSlot, QPoint
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtGui import QPainter, QColor, QFontMetrics
+from PyQt5.QtGui import QPainter, QColor, QFontMetrics, QFont
 
 from tentacle.client import TempData
 from tentacle.util import ts_to_hms
@@ -24,6 +24,7 @@ class TempWidget(QWidget):
         self.min_y = 0
         self.max_y = 100
         self.step_y = 10
+        self.font_family = None
         self.font_size = 8
         # data buf
         self.data_len = 320
@@ -55,6 +56,8 @@ class TempWidget(QWidget):
             self.step_y = int(cfg["step"])
         if "font_size" in cfg:
             self.font_size = int(cfg["font_size"])
+        if "font_family" in cfg:
+            self.font_family = cfg["font_family"]
 
     @pyqtSlot(TempData)
     def on_updateTemps(self, data):
@@ -91,7 +94,11 @@ class TempWidget(QWidget):
         height = s.height() - 2
         logging.info("temp win size: %d x %d", width, height)
         # derive font
-        self.f = self.font()
+        self.f = QFont()
+        if self.font_family:
+            self.f.setFamily(self.font_family)
+        else:
+            self.f.setFamily(self.font().family())
         self.f.setPixelSize(self.font_size)
         self.fm = QFontMetrics(self.f)
         # font boxes

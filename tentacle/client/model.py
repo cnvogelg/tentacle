@@ -136,7 +136,9 @@ class DataModel(QObject):
     updateTemps = pyqtSignal(TempData)
     updateCurrentZ = pyqtSignal(float)
     updateBusyFiles = pyqtSignal(object)
-    addSerialLog = pyqtSignal(str)
+    sendGCode = pyqtSignal(str)
+    sendRaw = pyqtSignal(str)
+    recvRaw = pyqtSignal(str)
     waitTemp = pyqtSignal(bool)
 
     def __init__(self):
@@ -146,7 +148,7 @@ class DataModel(QObject):
         self._job = JobModel()
         self._state_text = ""
         self._progress = ProgressModel()
-        self._currentZ = -1.0
+        self._current_z = -1.0
         self._wait_temp = False
         self._busy_files = None
 
@@ -183,12 +185,12 @@ class DataModel(QObject):
         if "temps" in data:
             self._update_temps(data["temps"])
         if "currentZ" in data:
-            currentZ = data["currentZ"]
-            if currentZ is None:
-                currentZ = -1.0
-            if currentZ != self._currentZ:
-                self._currentZ = currentZ
-                self.updateCurrentZ.emit(currentZ)
+            current_z = data["currentZ"]
+            if current_z is None:
+                current_z = -1.0
+            if current_z != self._current_z:
+                self._current_z = current_z
+                self.updateCurrentZ.emit(current_z)
         if "logs" in data:
             self._parse_logs(data['logs'])
         if "busyFiles" in data:
@@ -269,10 +271,14 @@ class DataModel(QObject):
         for entry in logs:
             if entry.startswith("Send: "):
                 line = entry[6:]
+                self.sendRaw.emit(line)
                 gcode = self._sanitize_gcode(line)
                 if gcode:
-                    self.addSerialLog.emit(gcode)
+                    self.sendGCode.emit(gcode)
                     self._handle_temp_wait(gcode)
+            elif entry.startswith("Recv: "):
+                line = entry[6:]
+                self.recvRaw.emit(line)
 
     def _handle_temp_wait(self, gcode):
         # wait temp?

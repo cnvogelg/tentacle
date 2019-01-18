@@ -17,7 +17,7 @@ class GCodeWidget(QWidget):
         # receive temps
         self._model = model
         self._client = client
-        self._model.addSerialLog.connect(self._on_add_serial_log)
+        self._model.sendGCode.connect(self._on_send_gcode)
         self._model.updateBusyFiles.connect(self._on_update_busy_files)
         # state
         self._enabled = False
@@ -63,7 +63,7 @@ class GCodeWidget(QWidget):
             return False
 
     @pyqtSlot(str)
-    def _on_add_serial_log(self, line):
+    def _on_send_gcode(self, line):
         """Process gcode."""
         words = line.split()
         if not words:
