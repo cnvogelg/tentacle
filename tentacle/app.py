@@ -71,9 +71,10 @@ class App(QMainWindow):
         menu.addSeparator()
         quit_act = menu.addAction("Quit Tentacle")
         menu.setActiveAction(quit_act)
-        x = (self.width() - menu.width()) // 2
-        y = (self.height() - menu.height()) // 2
-        action = menu.exec_(QPoint(x, y))
+        menu_size = menu.sizeHint()
+        x = (self.width() - menu_size.width()) // 2
+        y = (self.height() - menu_size.height()) // 2
+        action = menu.exec_(self.mapToGlobal(QPoint(x, y)))
         if action == quit_act:
             logging.error("quitting...")
             self.close()

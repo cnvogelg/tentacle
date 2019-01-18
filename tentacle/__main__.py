@@ -79,10 +79,7 @@ def setup_app(app, win, cfg, fb_mode):
     # window
     width = int(cfg['width'])
     height = int(cfg['height'])
-    if fb_mode:
-        win.setFixedSize(width, height)
-    else:
-        win.setGeometry(0, 0, width, height)
+    win.setFixedSize(width, height)
     # set style
     if 'style' in cfg:
         new_style_name = cfg['style']
