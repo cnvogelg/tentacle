@@ -6,9 +6,13 @@ from PyQt5.QtWidgets import (
     QWidget,
     QGridLayout,
     QVBoxLayout,
+    QHBoxLayout,
     QPushButton,
     QLabel,
-    QGroupBox
+    QGroupBox,
+    QButtonGroup,
+    QRadioButton,
+    QLineEdit
 )
 
 
@@ -29,6 +33,7 @@ class ToolWidget(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
+        # --- target temp ---
         # tool0
         self._t0_label = QLabel("Tool0")
         self._t0_temp = QLabel("000")
@@ -92,6 +97,33 @@ class ToolWidget(QWidget):
         grid.addWidget(self._bd_set1, 2, 3)
         grid.addWidget(self._bd_set2, 2, 4)
         grid.addWidget(self._bd_target, 2, 5)
+        # --- filament ---
+        group = QGroupBox("Filament")
+        layout.addWidget(group)
+        glayout = QVBoxLayout()
+        glayout.setContentsMargins(0, 0, 0, 0)
+        group.setLayout(glayout)
+        # tool selection
+        but_grp = QButtonGroup()
+        hlayout = QHBoxLayout()
+        hlayout.setContentsMargins(0, 0, 0, 0)
+        glayout.addLayout(hlayout)
+        self._rb_tool0 = QRadioButton("Tool 0")
+        self._rb_tool0.setChecked(True)
+        hlayout.addWidget(self._rb_tool0)
+        but_grp.addButton(self._rb_tool0)
+        self._rb_tool1 = QRadioButton("Tool 1")
+        hlayout.addWidget(self._rb_tool1)
+        but_grp.addButton(self._rb_tool1)
+        # amount
+        hlayout.addSpacing(1)
+        self._b_dec_amount = QPushButton("-")
+        hlayout.addWidget(self._b_dec_amount)
+        self._t_amount = QLineEdit("5")
+        hlayout.addWidget(self._t_amount)
+        self._b_inc_amount = QPushButton("+")
+        hlayout.addWidget(self._b_inc_amount)
+
         # fill
         layout.addStretch(1)
 
