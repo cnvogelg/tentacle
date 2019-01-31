@@ -1,0 +1,2 @@
+recursive-include tentacle/scripts *
+include tentacle/tentacle.cfg

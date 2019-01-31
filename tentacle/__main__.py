@@ -22,7 +22,7 @@ def read_config(cfg_paths, dump_config=None):
     cpa = configparser.ConfigParser()
     read_files = cpa.read(cfg_paths)
     logging.info("parsed config files: %r", read_files)
-    if len(read_files) == 0:
+    if not read_files:
         logging.error("No config files found in: %r", cfg_paths)
         return None
     if dump_config:

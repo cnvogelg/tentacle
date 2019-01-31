@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='tentacle',
       version='0.1',
@@ -7,7 +7,7 @@ setup(name='tentacle',
       author='Christian Vogelgsang',
       author_email='chris@vogelgsang.org',
       license='GLPv3',
-      packages=['tentacle'],
+      packages=find_packages(),
       zip_safe=True,
       install_requires=[
           'qdarkstyle',

@@ -37,11 +37,10 @@ class Commands:
     def _run_cmd(self, cmd):
         if cmd:
             args = cmd.split()
-            rel_dir = os.path.join(os.path.dirname(__file__), "..")
-            sys_dir = os.path.abspath(rel_dir)
+            mod_dir = os.path.dirname(__file__)
             for i, arg in enumerate(args):
-                if arg.startswith("./"):
-                    args[i] = sys_dir + arg[1:]
+                if arg.startswith("+/"):
+                    args[i] = mod_dir + arg[1:]
             try:
                 ret = subprocess.call(args)
             except IOError as exc:
