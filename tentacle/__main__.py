@@ -13,14 +13,22 @@ from tentacle.client import OctoClient
 from .app import App
 
 
-LOG_format = '%(asctime)s %(levelname)-8s %(message)s'
-LOG_datefmt = '%d.%m.%Y %H:%M:%S'
+LOG_FORMAT = '%(asctime)s %(levelname)-8s %(message)s'
+LOG_DATEFMT = '%d.%m.%Y %H:%M:%S'
 
 
-def read_config(cfg_file):
+def read_config(cfg_paths, dump_config=None):
     """Read the config file."""
     cpa = configparser.ConfigParser()
-    cpa.read(cfg_file)
+    read_files = cpa.read(cfg_paths)
+    logging.info("parsed config files: %r", read_files)
+    if len(read_files) == 0:
+        logging.error("No config files found in: %r", cfg_paths)
+        return None
+    if dump_config:
+        logging.info("writing config file: %s", dump_config)
+        with open(dump_config, "w") as fobj:
+            cpa.write(fobj)
     return cpa
 
 
@@ -37,6 +45,8 @@ def parse_args():
                      help="set scale of simulation playback (1.0=realtime)")
     apr.add_argument("-D", "--fb-dev", default=None,
                      help="setup frame buffer device for Qt output")
+    apr.add_argument("--dump-config", default=False,
+                     help="save the current configuration into given file")
     return apr.parse_args()
 
 
@@ -48,7 +58,7 @@ def setup_logging(args):
         level = logging.INFO
     else:
         level = logging.WARN
-    logging.basicConfig(level=level, format=LOG_format, datefmt=LOG_datefmt)
+    logging.basicConfig(level=level, format=LOG_FORMAT, datefmt=LOG_DATEFMT)
     logging.info("Welcome to tentacle!")
 
 
@@ -69,7 +79,7 @@ def setup_qt(args, cfg):
     return True
 
 
-def setup_app(app, win, cfg, fb_mode):
+def setup_app(app, win, cfg):
     """Init App parameters."""
     # app
     font_family = cfg['font_family']
@@ -123,15 +133,21 @@ def main():
     # setup logging
     setup_logging(args)
     # read config
-    cfg = read_config('tentacle.cfg')
+    cfg_paths = ['tentacle.cfg',
+                 os.path.expanduser('~/.tentacle.cfg'),
+                 '/etc/tentacle.cfg',
+                 os.path.join(os.path.dirname(__file__), 'tentacle.cfg')]
+    cfg = read_config(cfg_paths, args.dump_config)
+    if not cfg:
+        sys.exit(1)
     # setup octo client
     oc = setup_octo_client(args, cfg['octoprint'])
     # select qt frontend
-    fb_mode = setup_qt(args, cfg['qt'])
+    setup_qt(args, cfg['qt'])
     # setup app
     app = QApplication(sys.argv)
     ex = App(oc, cfg)
-    setup_app(app, ex, cfg['app'], fb_mode)
+    setup_app(app, ex, cfg['app'])
     ex.show()
     ret = app.exec_()
     # shut down
