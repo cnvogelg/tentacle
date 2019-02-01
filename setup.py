@@ -22,6 +22,7 @@ setup(name=__title__,
       packages=find_packages(),
       zip_safe=False,
       include_package_data=True,
+      python_requires='~=3.4',
       install_requires=[
           'qdarkstyle',
           'octorest'

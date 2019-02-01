@@ -7,7 +7,8 @@ tentacle - An OctoPrint frontend for small displays
 
 .. class:: no-web no-pdf
 
-|pypi| |unix_build|
+.. image:: https://img.shields.io/pypi/v/tentacle.svg?style=flat-square
+   :target: https://pypi.python.org/pypi/tentacle
 
 .. contents::
 
