@@ -1,14 +1,27 @@
 from setuptools import setup, find_packages
 
-setup(name='tentacle',
-      version='0.1',
-      description='An OctoPrint frontend suitable for small displays',
-      url='http://github.com/cnvogelg/tentacle',
-      author='Christian Vogelgsang',
-      author_email='chris@vogelgsang.org',
-      license='GLPv3',
+
+# fetch version, author, ...
+exec(open("tentacle/__about__.py").read())
+
+
+def read_readme():
+    """read README.rst file."""
+    with open("README.rst") as fobj:
+        return fobj.read()
+
+
+setup(name=__title__,
+      version=__version__,
+      description=__summary__,
+      long_description=read_readme(),
+      url=__uri__,
+      author=__author__,
+      author_email=__email__,
+      license=__license__,
       packages=find_packages(),
-      zip_safe=True,
+      zip_safe=False,
+      include_package_data=True,
       install_requires=[
           'qdarkstyle',
           'octorest'

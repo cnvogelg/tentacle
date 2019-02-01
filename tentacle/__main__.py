@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import QApplication, QStyleFactory
 
 from tentacle.client import OctoClient
 from .app import App
-
+from .__about__ import __version__
 
 LOG_FORMAT = '%(asctime)s %(levelname)-8s %(message)s'
 LOG_DATEFMT = '%d.%m.%Y %H:%M:%S'
@@ -59,7 +59,7 @@ def setup_logging(args):
     else:
         level = logging.WARN
     logging.basicConfig(level=level, format=LOG_FORMAT, datefmt=LOG_DATEFMT)
-    logging.info("Welcome to tentacle!")
+    logging.info("Welcome to tentacle %s", __version__)
 
 
 def setup_qt(args, cfg):

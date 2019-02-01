@@ -1,2 +1,4 @@
 recursive-include tentacle/scripts *
 include tentacle/tentacle.cfg
+include LICENSE
+include README.rst
