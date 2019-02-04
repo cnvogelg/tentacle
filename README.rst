@@ -36,8 +36,11 @@ Linux / Raspberry Pi
 --------------------
 
 * First setup your TFT and the (calibrated) touch input.
-  Typically your TFT's framebuffer device is ``/dev/fb1```
+  Typically your TFT's framebuffer device is ``/dev/fb1``
   See `Appendix`_ for details on my setup.
+
+Install with PIP3
++++++++++++++++++
 
 * Install the PyQt5 package for Python 3 with ``apt``:
 
@@ -51,6 +54,56 @@ Linux / Raspberry Pi
 
     $ sudo apt install python3-pip
     $ pip3 install tentacle
+
+This will install ``tentacle`` for the current user only.
+If you want to install the package system-wide use ``sudo``:
+
+.. code-block:: bash
+
+    $ sudo pip3 install tentacle
+
+Manual startup
+++++++++++++++
+
+Now you can test run the binary from a remote shell (ssh):
+
+    $ tentacle -v
+
+Use manual startup to tweak your Configuration_
+
+Autostart with ``systemd``
+++++++++++++++++++++++++++
+
+In ``systemd/tentacle.service`` you'll find a template service file for
+systemd. Adjust and copy this file to ``/etc/systemd/system/``.
+
+Make sure the user is setup correctly. Default is ``pi``.
+
+Try to run the service with:
+
+.. code-block:: bash
+
+    $ sudo systemctl start tentacle
+
+See the status with:
+
+.. code-block:: bash
+
+    $ sudo systemctl status tentacle
+
+Stop the service with:
+
+.. code-block:: bash
+
+    $ sudo systemctl stop tentacle
+
+To permanently enable the service for the next boot use:
+
+.. code-block:: bash
+
+    $ sudo systemctl enable tentacle
+
+Done!
 
 macOS
 -----
@@ -68,6 +121,205 @@ You can run ``tentacle`` on your Mac in a window to test the UI.
 .. code-block:: bash
 
     $ pip install tentacle
+
+
+Configuration
+=============
+
+While ``tentacle`` already ships with a sensible set of default configuration
+parameters you can adjust them as you need.
+
+The configuration file is called ``tentacle.cfg`` and searched at the
+following locations:
+
+* current working directory (suitable for test runs)
+* ``$HOME/.tentacle.cfg``
+* ``/etc/tentacle.cfg`` (suitable for systemd setup)
+
+The config has INI like syntax and is split into sections.
+To get the default configuration just run ``tentacle --dump-config`` to write
+it into a file:
+
+.. code-block:: bash
+
+    $ tentacle --dump-config tentacle.cfg
+
+Section ``octoprint``
+---------------------
+
+``url``
+    The URL to reach OctoPrint. Either use ``http:`` or ``https:``. Make sure
+    the hostname matches (default: ``octopi``).
+
+    Default::
+
+        http://octopi
+
+``api_key``
+    Give the API key you created in ``OctoPrint`` to allow to execute commands
+    via the REST API.
+
+Section ``qt``
+--------------
+
+``fb_dev``
+    The frame buffer device of your TFT display.
+
+    Default::
+
+        /dev/fb0
+
+``ts_dev``
+    The touch screen input device.
+
+    Default::
+
+        /dev/input/touchscreen
+
+Section ``app``
+---------------
+
+Global settings for the whole UI.
+
+``font_family`` and ``font_size``
+    Specify the font used for the UI.
+
+``width`` and ``height``
+    The size of your display
+
+``dark``
+    Enable ``dark`` mode. Disable to see ``light`` mode.
+
+``style``
+    Select a specific Qt widget style
+
+Section ``temp``
+----------------
+
+Settings for the ``temp`` tab in the UI.
+
+``font_family`` and ``font_size``
+    Specify the font used for the UI temperate labels
+
+``min`` and ``max``
+    Set the minimum and maximum temperature shown in graph.
+
+``step``
+    Set the line and label stepping in the graph display.
+
+Section ``move``
+----------------
+
+Settings for the ``move`` tab in the UI.
+
+``unload_z``
+    The Z axis position to move to when selecting the ``Unload`` button.
+
+``label_a`` and ``label_b``
+    The label text to be displayed for the custom move buttons.
+
+``pos_a`` and ``pos_b``
+    The X,Y,Z position to move to when selecting a custom button.
+
+Section ``tool``
+----------------
+
+Settings for the ``tool`` tab in the UI.
+
+``t{0,1}_temp{1,2}`` and ``bed_temp{1,2}``
+    Set the default temperature for the tools 0, 1, and the bed.
+
+Section ``ser``
+---------------
+
+Settings for the ``ser`` tab in the UI.
+
+``font_family`` and ``font_size``
+    Specify the font used for the UI serial log output
+
+Section ``cam``
+---------------
+
+Settings for the ``cam`` tab in the UI.
+
+``url``
+    The the URL of ``mjpeg streamer`` to get the mjpeg stream from your camera.
+
+    Default::
+
+        http://octopi:8080/?action=stream
+
+
+Section ``commands``
+--------------------
+
+Configure various external commands triggered by ``tentacle``.
+
+Note: Make sure the user running ``tentacle`` is allowed to perform these
+commands. You may need to add ``sudo`` and configure it to run the
+commands without password input.
+
+``restart_octoprint``
+    Restart the OctoPrint server.
+
+    Default::
+
+        /bin/systemctl restart octoprint
+
+``reboot_sys``
+    Reboot the whole system.
+
+    Default::
+
+        /sbin/reboot
+
+``poweroff_sys``
+    Power off the system.
+
+    Default::
+
+        /sbin/poweroff
+
+``backlight_on``
+    Enable the backlight of the TFT display.
+
+    Default::
+
+        +/scripts/backlight 1
+
+``backlight_off``
+    Disable the backlight of the TFT display.
+
+    Default::
+
+        +/scripts/backlight 0
+
+Note: A path starting with ``+/`` is automatically expanded to the ``scripts``
+directory in the ``tentacle`` module.
+
+User's Manual
+=============
+
+Hard keys
+---------
+
+The following keys are recognized:
+
+``escape```
+    Enter the system menu to execute control commands.
+    In the menu abort the menu and close it.
+
+``return``
+    Save a screen shot.
+    In the menu select and activate an item.
+
+``cursor up``
+    Enable the backlight of the display.
+    In the menu move one item up.
+
+``cursor down``
+    Disable the backlight of the display.
+    In the menu move one item down.
 
 
 Appendix
@@ -239,7 +491,7 @@ Note that only the first 6 values of the matrix are used here.
 Reboot your Pi to make this matrix active.
 
 You can check if the matrix is setup correctly with the
-``libinput-list-devices``` tool.
+``libinput-list-devices`` tool.
 
 .. code-block:: bash
 
