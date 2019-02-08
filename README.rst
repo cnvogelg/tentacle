@@ -305,7 +305,7 @@ Hard keys
 
 The following keys are recognized:
 
-``escape```
+``escape``
     Enter the system menu to execute control commands.
     In the menu abort the menu and close it.
 

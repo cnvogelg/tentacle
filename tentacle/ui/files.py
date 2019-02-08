@@ -135,6 +135,7 @@ class FilesWidget(QWidget):
         self._t_files.setHeaderHidden(True)
         # button row
         hlayout = QHBoxLayout()
+        hlayout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(hlayout)
         self._b_select = QPushButton("Select")
         self._b_select.clicked.connect(self._on_select)

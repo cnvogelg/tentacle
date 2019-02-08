@@ -311,6 +311,46 @@ class OctoClient(QObject):
         else:
             logging.info("sim feedrate: %r", rate)
 
+    def flowrate(self, rate):
+        """Set the flowrate."""
+        if self.client:
+            try:
+                return self.client.flowrate(rate)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim flowrate: %r", rate)
+
+    def tool_select(self, tool):
+        """Select tool for extrude/retract."""
+        if self.client:
+            try:
+                return self.client.tool_select(tool)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim tool select: %r", tool)
+
+    def extrude(self, amount):
+        """Extrude filament."""
+        if self.client:
+            try:
+                return self.client.extrude(amount)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim extrude: %r", amount)
+
+    def retract(self, amount):
+        """Retract filament."""
+        if self.client:
+            try:
+                return self.client.retract(amount)
+            except RuntimeError as e:
+                self.error.emit(str(e))
+        else:
+            logging.info("sim retract: %r", amount)
+
     def send_gcode(self, commands):
         """Send GCode Commands."""
         if self.client:
