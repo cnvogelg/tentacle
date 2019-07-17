@@ -140,8 +140,7 @@ class FileModel(QObject):
         file_info = self._client.file_info(path)
         if file_info:
             logging.info("file meta retrieved: %s: %s", path, file_info)
-            self._files_set_meta(path, file_info)
-            return self._meta_cache[path]
+            return self._files_set_meta(path, file_info)
         else:
             logging.error("can't get file info: %s", path)
 
@@ -222,17 +221,25 @@ class FileModel(QObject):
         if dir_node:
             node = dir_node.get_child_by_name(name)
             if node:
-                pa = meta['printingArea']
-                sxi = pa['minX']
-                sxa = pa['maxX']
-                syi = pa['minY']
-                sya = pa['maxY']
-                szi = pa['minZ']
-                sza = pa['maxZ']
-                meta = FileMeta((sxi, sxa), (syi, sya), (szi, sza))
-                node.meta = meta
-                self._meta_cache[path] = meta
-                logging.info("set meta data: %s: %s", path, meta)
+                if 'gcodeAnalysis' in meta:
+                    gca = meta['gcodeAnalysis']
+                    if 'printingArea' in gca:
+                        pa = gca['printingArea']
+                        sxi = pa['minX']
+                        sxa = pa['maxX']
+                        syi = pa['minY']
+                        sya = pa['maxY']
+                        szi = pa['minZ']
+                        sza = pa['maxZ']
+                        meta = FileMeta((sxi, sxa), (syi, sya), (szi, sza))
+                        node.meta = meta
+                        self._meta_cache[path] = meta
+                        logging.info("set meta data: %s: %s", path, meta)
+                        return meta
+                    else:
+                        logging.error("no 'printingArea' in %s", gca)
+                else:
+                    logging.error("no 'gcodeAnalysis' in %s", meta)
             else:
                 logging.error("invaid node: %s", path)
         else:
