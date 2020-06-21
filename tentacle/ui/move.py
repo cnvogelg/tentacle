@@ -56,6 +56,8 @@ class MoveWidget(QWidget):
         self._b_button_a.clicked.connect(self._on_move_a)
         self._b_button_b = QPushButton("Button B")
         self._b_button_b.clicked.connect(self._on_move_b)
+        self._b_button_c = QPushButton("Button C")
+        self._b_button_c.clicked.connect(self._on_move_c)
         # scale
         self._r_scale_01mm = QRadioButton("0.1")
         self._r_scale_01mm.setChecked(True)
@@ -107,6 +109,7 @@ class MoveWidget(QWidget):
         lay.addWidget(self._b_unload)
         lay.addWidget(self._b_button_a)
         lay.addWidget(self._b_button_b)
+        lay.addWidget(self._b_button_c)
         # fill ui
         layout.addStretch(1)
         # params
@@ -135,10 +138,14 @@ class MoveWidget(QWidget):
             self._b_button_a.setText(cfg["label_a"])
         if "label_b" in cfg:
             self._b_button_b.setText(cfg["label_b"])
+        if "label_c" in cfg:
+            self._b_button_c.setText(cfg["label_c"])
         if "pos_a" in cfg:
             self._pos_a = tuple(map(float, cfg["pos_a"].split(",")))
         if "pos_b" in cfg:
             self._pos_b = tuple(map(float, cfg["pos_b"].split(",")))
+        if "pos_c" in cfg:
+            self._pos_c = tuple(map(float, cfg["pos_c"].split(",")))
 
     def on_scale(self, new_scale):
         """React on scale radio buttons."""
@@ -183,4 +190,9 @@ class MoveWidget(QWidget):
     def _on_move_b(self):
         cmds = ("G90", "G0 X%g Y%g Z%g F1000" % self._pos_b)
         logging.info("move_b: %s", cmds)
+        self._client.send_gcode(cmds)
+
+    def _on_move_c(self):
+        cmds = ("G90", "G0 X%g Y%g Z%g F1000" % self._pos_c)
+        logging.info("move_c: %s", cmds)
         self._client.send_gcode(cmds)
