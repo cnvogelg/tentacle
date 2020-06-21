@@ -176,9 +176,11 @@ class MoveWidget(QWidget):
         self._client.feedrate(100)
 
     def _on_move_a(self):
-        logging.info("move_a: %s", self._pos_a)
-        self._client.jog(*self._pos_a)
+        cmds = ("G90", "G0 X%g Y%g Z%g F1000" % self._pos_a)
+        logging.info("move_a: %s", cmds)
+        self._client.send_gcode(cmds)
 
     def _on_move_b(self):
-        logging.info("move_b: %s", self._pos_b)
-        self._client.jog(*self._pos_b)
+        cmds = ("G90", "G0 X%g Y%g Z%g F1000" % self._pos_b)
+        logging.info("move_b: %s", cmds)
+        self._client.send_gcode(cmds)

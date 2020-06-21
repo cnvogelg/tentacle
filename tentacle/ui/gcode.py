@@ -103,9 +103,12 @@ class GCodeWidget(QWidget):
         # update X, Y, or Z
         for word in words:
             tag = word[0]
-            val = float(word[1:])
-            if tag in ('X', 'Y', 'Z'):
-                self._pos[ord(tag) - ord('X')] = val
+            try:
+                val = float(word[1:])
+                if tag in ('X', 'Y', 'Z'):
+                    self._pos[ord(tag) - ord('X')] = val
+            except ValueError as e:
+                logging.error("error parsing move Gcode: %s", tag)
         # z inc?
         if self._cur_z != self._pos[2]:
             self.repaint()

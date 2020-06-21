@@ -4,7 +4,7 @@ __title__ = 'tentacle'
 __summary__ = 'An OctoPrint frontend suitable for small displays'
 __uri__ = 'https://github.com/cnvogelg/tentacle'
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 __author__ = 'Christian Vogelgsang'
 __email__ = 'chris@vogelgsang.org'
